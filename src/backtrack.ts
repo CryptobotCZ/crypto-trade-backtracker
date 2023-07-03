@@ -1,70 +1,68 @@
+import { TradeData } from './binance-api.ts';
+
 export interface PriceTarget  {
   // price: number;
   percentage: number;
 }
 
-export interface TrailingStop {
-  type: 'without' | 'moving-target' | 'moving-2-target' | 'breakeven' | 'percent-below-highest' | 'percent-below-triggers';
+export type TrailingStopType = 'without' | 'moving-target' | 'moving-2-target' | 'breakeven' | 'percent-below-highest' | 'percent-below-triggers';
+
+export interface AbstractTrailingStop {
+  type: TrailingStopType;
 }
 
-export interface TrailingStopMovingTarget extends TrailingStop {
-  type: 'moving-target';
+export interface TrailingStopWithout extends AbstractTrailingStop {
+  type: 'without';
+}
+
+export interface TrailingStopMovingTarget extends AbstractTrailingStop {
+  type: 'moving-target' | 'moving-2-target';
   trigger: number;
 }
 
-export interface TralingStop2MovingTarget extends TrailingStop {
-  type: 'moving-2-target';
-  trigger: number;
-}
-
+export type TrailingStop = TrailingStopWithout | TrailingStopMovingTarget;
 
 export interface CornixConfiguration {
   amount: number;
   entries: PriceTarget[];
   tps: PriceTarget[];
-  sl: number;
   trailingStop: TrailingStop;
   trailingTakeProfit: number | 'without';
 }
 
 export interface Order {
+  coin: string;
+  leverage?: number;
+  exchange?: string;
   timestamp: number;
   entries: number[];
+  tps: number[];
+  sl: number;
 }
 
-export interface HistoricalData {
-  open_time: number;
-  open: number;
-  high: number;
-  low: number;
-  close: number;
-  volume: number;
-  close_time: number;
-  quote_volume: number;
-  count: number;
-  taker_buy_volume: number;
-  taker_buy_quote_volume: number;
-  ignore: number;
-};
-
-export function backtrack(config: CornixConfiguration, order: Order, data: HistoricalData[]) {
+export function backtrack(config: CornixConfiguration, order: Order, data: TradeData[]) {
 
   const events = [] as any[];
 
-  const remainingEntries = mapPriceTargets(order, config.entries);
-  const remainingTps = mapPriceTargets(order, config.tps);
+  const remainingEntries = mapPriceTargets(order.entries, config.entries);
+  const remainingTps = mapPriceTargets(order.tps, config.tps);
 
   const results = {
     coins: 0,
+    soldCoins: 0,
     price: 0,
+    totalProfit: 0,
     isFullyOpen: false,
+    isFullyClosed: false,
     entries: [] as number[],
     closePrices: [] as number[],
     profits: [] as number[],
+    currentSl: order.sl,
+    averageEntry: 0,
   };
 
   data.forEach(element => {
-    if (element.open_time < order.timestamp) {
+    if (element.openTime < order.timestamp || results.isFullyClosed) {
       return;
     }
 
@@ -78,6 +76,7 @@ export function backtrack(config: CornixConfiguration, order: Order, data: Histo
 
       results.coins += boughtCoins;
       results.price += spentOnEntry;
+      results.averageEntry = results.entries.reduce((sum, curr) => sum + curr, 0) / results.entries.length;
 
       if (remainingEntries.length === 0) {
         results.isFullyOpen = true;
@@ -85,7 +84,7 @@ export function backtrack(config: CornixConfiguration, order: Order, data: Histo
         results.isFullyOpen = true;
       }
 
-      events.push({ type: 'buy', price: openedEntry.price, spent: spentOnEntry, bought: boughtCoins, timestamp: element.open_time });
+      events.push({ type: 'buy', price: openedEntry.price, spent: spentOnEntry, bought: boughtCoins, timestamp: element.openTime });
 
       return;
     }
@@ -94,20 +93,54 @@ export function backtrack(config: CornixConfiguration, order: Order, data: Histo
       return;
     }
 
+    if (element.high >= remainingTps[0].price) {
+      const tpHit = remainingTps[0];
+      remainingTps.splice(0, 1);
+      results.closePrices.push(tpHit.price);
 
+      const soldCoins = results.coins * tpHit.percentage;
+      const spentOnTp = soldCoins * tpHit.price;
 
+      results.soldCoins += soldCoins;
+      results.totalProfit += spentOnTp;
+
+      if (remainingTps.length === 0) {
+        results.isFullyClosed = true;
+      } else if (remainingTps[0].percentage == 0) {
+        results.isFullyClosed = true;
+      }
+
+      events.push({ type: 'sell', price: tpHit.price, spent: spentOnTp, sold: soldCoins, timestamp: element.openTime });
+
+      if (config.trailingStop.type === 'moving-target' && config.trailingStop.trigger == 1) {
+        if (tpHit.priceTarget == 1) {
+          results.currentSl = order.entries[0];
+        }
+      }
+
+      return;
+    }
+
+    if (element.low <= results.currentSl) {
+      results.isFullyClosed = true;
+      events.push({ type: 'sl', price: results.currentSl, timestamp: element.openTime });
+    }
   });
 
+  return { events, results };
 }
 
 
-export function mapPriceTargets(order: Order, priceTargets: PriceTarget[]): { priceTarget: number, percentage: number, price: number }[] {
+export function mapPriceTargets(orderTargets: number[], priceTargets: PriceTarget[]): { priceTarget: number, percentage: number, price: number }[] {
   const result: { priceTarget: number, percentage: number, price: number }[] = [];
 
-  for (let i = 0; i < order.entries.length; i++) {
+  for (let i = 0; i < orderTargets.length; i++) {
+    if (i >= priceTargets.length)
+      break;
+
     const priceTargetIndex = i + 1;
     const percentage = priceTargets[i].percentage;
-    const price = order.entries[i];
+    const price = orderTargets[i];
 
     result.push({ priceTarget: priceTargetIndex, percentage, price });
   }

@@ -1,8 +1,12 @@
 import { TradeData } from './binance-api.ts';
 
 export interface PriceTarget  {
-  // price: number;
   percentage: number;
+}
+
+export interface PriceTargetWithPrice extends PriceTarget {
+  id: number;
+  price: number;
 }
 
 export type TrailingStopType = 'without' | 'moving-target' | 'moving-2-target' | 'breakeven' | 'percent-below-highest' | 'percent-below-triggers';
@@ -35,117 +39,38 @@ export interface Order {
   coin: string;
   leverage?: number;
   exchange?: string;
+  date: Date;
   timestamp: number;
   entries: number[];
   tps: number[];
   sl: number;
+  direction?: 'SHORT' | 'LONG';
+}
+
+export type LogEvent = any & { type: string };
+export type LogFunction = (status: LogEvent) => void;
+
+export interface Logger {
+  log: (status: LogEvent) => void;
 }
 
 export function backtrack(config: CornixConfiguration, order: Order, data: TradeData[]) {
-
-  const events = [] as any[];
-
-  const remainingEntries = mapPriceTargets(order.entries, config.entries);
-  const remainingTps = mapPriceTargets(order.tps, config.tps);
-
-  const results = {
-    coins: 0,
-    soldCoins: 0,
-    price: 0,
-    totalProfit: 0,
-    isFullyOpen: false,
-    isFullyClosed: false,
-    entries: [] as number[],
-    detailedEntries: [] as any[],
-    closePrices: [] as number[],
-    profits: [] as number[],
-    currentSl: order.sl,
+  const logger = {
+    events: [] as LogEvent[],
+    log: function(event: LogEvent) {
+      this.events.push(event)
+    }
   };
 
-  data.forEach(element => {
-    if (element.openTime < order.timestamp || results.isFullyClosed) {
-      return;
-    }
+  let state: AbstractState = new InitialState(order, config, logger);
 
-    if (!results.isFullyOpen && (element.low <= remainingEntries[0].price)) {
-      const openedEntry = remainingEntries[0];
+  data.forEach(element => state = state.updateState(element));
 
-      const spentOnEntry = config.amount * openedEntry.percentage;
-      const boughtCoins = spentOnEntry / openedEntry.price;
-
-      results.coins += boughtCoins;
-      results.price += spentOnEntry;
-
-      results.entries.push(openedEntry.price);
-      results.detailedEntries.push({
-        entry: openedEntry.priceTarget,
-        price: openedEntry.price,
-        coins: boughtCoins,
-        total: spentOnEntry
-      });
-
-      remainingEntries.splice(0, 1);
-      if (remainingEntries.length === 0) {
-        results.isFullyOpen = true;
-      } else if (remainingEntries[0].percentage == 0) {
-        results.isFullyOpen = true;
-      }
-
-      events.push({ type: 'buy', price: openedEntry.price, spent: spentOnEntry, bought: boughtCoins, timestamp: element.openTime });
-
-      return;
-    }
-
-    if (results.entries.length === 0) {
-      return;
-    }
-
-    if (element.high >= remainingTps[0].price) {
-      const tpHit = remainingTps[0];
-
-      if (config.trailingTakeProfit !== 'without') {
-          events.push( { type: 'trailing-activated', price: tpHit.price, timestamp: element.openTime });
-          return;
-      }
-
-      remainingTps.splice(0, 1);
-      results.closePrices.push(tpHit.price);
-
-      const soldCoins = results.coins * tpHit.percentage;
-      const spentOnTp = soldCoins * tpHit.price;
-
-      results.soldCoins += soldCoins;
-      results.totalProfit += spentOnTp;
-
-      if (remainingTps.length === 0) {
-        results.isFullyClosed = true;
-      } else if (remainingTps[0].percentage == 0) {
-        results.isFullyClosed = true;
-      }
-
-      events.push({ type: 'sell', price: tpHit.price, spent: spentOnTp, sold: soldCoins, timestamp: element.openTime });
-
-      if (config.trailingStop.type === 'moving-target' && config.trailingStop.trigger == 1) {
-        if (tpHit.priceTarget == 1) {
-          results.currentSl = order.entries[0];
-        }
-      }
-
-      return;
-    }
-
-    if (element.low <= results.currentSl) {
-      results.isFullyClosed = true;
-      events.push({ type: 'sl', price: results.currentSl, timestamp: element.openTime });
-    }
-  });
-
-  return { events, results };
+  return { events: logger.events, results: state.info };
 }
 
-
-export function mapPriceTargets(orderTargets: number[], priceTargets: PriceTarget[]): { priceTarget: number, percentage: number, price: number }[] {
-  const result: { priceTarget: number, percentage: number, price: number }[] = [];
+export function mapPriceTargets(orderTargets: number[], priceTargets: PriceTarget[]): PriceTargetWithPrice[] {
+  const result: PriceTargetWithPrice[] = [];
 
   for (let i = 0; i < orderTargets.length; i++) {
     if (i >= priceTargets.length)
@@ -155,10 +80,14 @@ export function mapPriceTargets(orderTargets: number[], priceTargets: PriceTarge
     const percentage = priceTargets[i].percentage;
     const price = orderTargets[i];
 
-    result.push({ priceTarget: priceTargetIndex, percentage, price });
+    result.push({ id: priceTargetIndex, percentage, price });
   }
 
   return result;
+}
+
+export function sumPct(targets: PriceTargetWithPrice[]): number {
+  return targets.reduce((sum, x) => sum + x.percentage, 0);
 }
 
 interface DetailedEntry {
@@ -168,7 +97,7 @@ interface DetailedEntry {
   entry: number;
 
   /**
-   * price target of entry
+   * price value f entry
    */
   price: number;
 
@@ -178,58 +107,59 @@ interface DetailedEntry {
   coins: number;
 
   /**
-   * total amount of used USDT
+   * total amount of used USDT (price * coins)
    */
   total: number;
+
+  /**
+   * Date
+   */
+  date: Date;
 }
 
-class StateMachine {
-  allocatedAmount = 0;
+type InternalState = {
+  order: Order;
+  config: CornixConfiguration;
 
-  soldCoins = 0;
-  earnedProfit = 0;
+  remainingEntries: PriceTargetWithPrice[];
+  remainingTps: PriceTargetWithPrice[];
 
-  waitingForEntryPrice = 0;
-  waitingForProfitPrice = 0;
+  tradeOpenTime: Date;
+  tradeCloseTime: Date | null;
 
-  currentTrailingReferencePrice = 0;
-  currentTrailingStopPrice = 0;
+  allocatedAmount: number;
 
-  trailingPercentage = 0;
-  trailingActive = false;
+  entries: DetailedEntry[];
+  takeProfits: DetailedEntry[];
+  sl: DetailedEntry | null;
 
-  events = [];
+  closePrices: number[];
+  profits: number[];
 
-  private results = {
-    coins: 0,
-    soldCoins: 0,
-    price: 0,
-    totalProfit: 0,
-    isFullyOpen: false,
-    isFullyClosed: false,
-    entries: [] as number[],
-    closePrices: [] as number[],
-    profits: [] as number[],
-    currentSl: 0,
-    averageEntry: 0,
-  };
+  currentSl: number;
 
+  logger: Logger;
+};
 
-  remainingEntries = [];
-  remainingTps = [];
-
-  entries: DetailedEntry[] = [];
-  tps: DetailedEntry[] = [];
-
-  hitSl = false;
-  hitTp = false;
-
-  get boughtCoins() {
-    return this.entries.reduce((sum, curr) => sum + curr.coins, 0);
+abstract class AbstractState {
+  get allocatedAmount() {
+    return this.state.allocatedAmount;
   }
 
   get spentAmount() {
-    return this.entries.reduce((sum, curr) => sum + curr.total, 0);
+    return this.state.entries.reduce((sum, curr) => sum + curr.total, 0);
+  }
+
+  get remainingAmount() {
+    return this.allocatedAmount - this.spentAmount;
+  }
+
+  get boughtCoins() {
+    return this.state.entries.reduce((sum, entry) => entry.coins + sum, 0);
+  }
+
+  get remainingCoins() {
+    return this.boughtCoins - this.soldCoins;
   }
 
   get averageEntryPrice() {
@@ -237,59 +167,270 @@ class StateMachine {
   }
 
   get isOpen() {
-    return this.entries.length > 0 && this.hitSl == false;
+    return this.state.entries.length > 0;
   }
 
   get isFullyOpen() {
-    return this.remainingEntries.length === 0;
+    return this.state.remainingEntries.length === 0;
   }
 
-  get isClosed() {
-    return this.hitSl || this.remainingTps.length === 0;
+  get soldCoins() {
+    return this.state.takeProfits.reduce((sum, tp) => tp.coins + sum, 0) + (this.state.sl?.coins ?? 0);
   }
 
-  constructor(public readonly order: Order, public readonly config: CornixConfiguration) {
-    this.allocatedAmount = order.amount ?? config.amount;
+  get saleValue() {
+    return this.state.takeProfits.reduce((sum, tp) => tp.total + sum, 0) + (this.state.sl?.total ?? 0);
   }
 
-  updateStateWithPrice(price: number) {
-    if (this.trailingActive) {
-      if (price > this.currentTrailingReferencePrice) {
-        console.log('Updating trailing price...');
-        this.currentTrailingReferencePrice = price;
-        this.currentTrailingStopPrice = price * (1 - this.trailingPercentage);
-      } else if (price < this.currentTrailingStopPrice) {
-        console.log('Closing TP point with trailing');
-        this.trailingActive = false;
-      }
+  get leverage() {
+    return this.state.order.leverage ?? 1;
+  }
+
+  get pnl() {
+    const gain = Math.abs(this.saleValue - this.averageEntryPrice) / this.averageEntryPrice;
+    return gain * this.leverage;
+  }
+
+  constructor(public readonly state: InternalState) {}
+
+  updateState(tradeData: TradeData): AbstractState {
+    if (tradeData.openTime < this.state.tradeOpenTime.getTime()) {
+      return this;
+    }
+
+    if (this.matchesEntryPrice(tradeData)) {
+      return this.hitEntryPoint(tradeData);
+    } else if (this.matchesTakeProfitPrice(tradeData)) {
+      return this.hitTp(tradeData);
+    } else if (this.matchesStopLossPrice(tradeData)) {
+      return this.hitSl(tradeData);
+    }
+
+    return this;
+  }
+
+  hitEntryPoint(_tradeData: TradeData): AbstractState { return this; }
+  hitTp(_tradeData: TradeData): AbstractState { return this; }
+  hitSl(_tradeData: TradeData): AbstractState { return this; }
+
+  matchesEntryPrice(tradeData: TradeData) {
+    if (this.state.remainingEntries.length === 0) {
+      return false;
+    }
+
+    if (this.state.order.direction === 'LONG') {
+      return tradeData.low <= this.state.remainingEntries[0].price;
+    } else {
+      return tradeData.high >= this.state.remainingEntries[0].price;
     }
   }
 
-  hitEntryPoint(price: number) {
-    const openedEntry = remainingEntries[0];
-    remainingEntries.splice(0, 1);
-    results.entries.push(openedEntry.price);
+  matchesTakeProfitPrice(tradeData: TradeData) {
+    if (this.state.remainingTps.length === 0) {
+      return false;
+    }
+
+    if (this.state.order.direction === 'LONG') {
+      return tradeData.high >= this.state.remainingTps[0].price;
+    } else {
+      return tradeData.low <= this.state.remainingTps[0].price;
+    }
+  }
+
+  matchesStopLossPrice(tradeData: TradeData) {
+    if (this.state.order.sl == null) {
+      return false;
+    }
+
+    if (this.state.order.direction === 'LONG') {
+      return tradeData.low <= this.state.order.sl;
+    } else {
+      return tradeData.high >= this.state.order.sl;
+    }
+  }
+
+  get info() {
+    return {
+      countEntries: this.state.entries.length,
+      highestTp: this.state.takeProfits.length,
+      openTime: this.state.tradeOpenTime,
+      closeTime: this.state.tradeCloseTime,
+      isClosed: this.state.tradeCloseTime != null,
+      isProfitable: false,
+      hitSl: this.state.sl != null,
+    };
+  }
+}
+
+class InitialState extends AbstractState {
+  get phase() {
+    return 'entry';
+  }
+
+  constructor(public readonly order: Order, public readonly config: CornixConfiguration, logger?: Logger) {
+    const remainingEntries = mapPriceTargets(order.entries, config.entries);
+    const remainingTps = mapPriceTargets(order.tps, config.tps);
+
+    if (sumPct(remainingEntries) !== 100) {
+      throw new Error('entries percentage must add to 100%');
+    }
+
+    if (sumPct(remainingTps) !== 100) {
+      throw new Error('TPs percentage must add to 100%');
+    }
+
+    const direction = order.direction ??
+      remainingTps[0].price > remainingEntries[0].price ? 'LONG' : 'SHORT';
+
+    logger = logger ?? { log: function() {} };
+
+    const state: InternalState = {
+      allocatedAmount: order.amount ?? config.amount,
+      tradeOpenTime: new Date(order.timestamp),
+      remainingEntries,
+      remainingTps,
+      order: { ...order, direction },
+      config: config,
+      tradeCloseTime: null,
+      entries: [],
+      closePrices: [],
+      profits: [],
+      currentSl: order.sl,
+      takeProfits: [],
+      sl: null,
+      logger,
+    };
+
+    super(state);
+  }
+
+  hitEntryPoint(tradeData: TradeData): AbstractState {
+    const openedEntry = { ...this.state.remainingEntries[0] };
+
+    const price = openedEntry.price;
+    const time = tradeData.openTime;
 
     const spentOnEntry = this.allocatedAmount * openedEntry.percentage;
-    const boughtCoins = spentOnEntry / openedEntry.price;
+    const boughtCoins = spentOnEntry / price;
 
-    results.coins += boughtCoins;
-    results.price += spentOnEntry;
-    results.averageEntry = results.entries.reduce((sum, curr) => sum + curr, 0) / results.entries.length;
+    const detailedEntry: DetailedEntry = {
+      coins: boughtCoins,
+      price: price,
+      total: spentOnEntry,
+      entry: openedEntry.id,
+      date: new Date(time)
+    };
 
-    if (remainingEntries.length === 0) {
-      results.isFullyOpen = true;
-    } else if (remainingEntries[0].percentage == 0) {
-      results.isFullyOpen = true;
-    }
+    this.state.logger.log({ type: 'buy', price: openedEntry.price, spent: spentOnEntry, bought: boughtCoins, timestamp: time });
 
-    events.push({ type: 'buy', price: openedEntry.price, spent: spentOnEntry, bought: boughtCoins, timestamp: element.openTime });
-
+    return new EntryPointReachedState({
+      ...this.state,
+      entries: [ ...this.state.entries, detailedEntry ],
+      remainingEntries: this.state.remainingEntries.filter(x => x.id !== openedEntry.id),
+    });
   }
 
-  closeTpWithPrice(price: number) {
-
+  hitTpPoint(tradeData: TradeData): AbstractState {
+    return new TakeProfitBeforeEntryState({
+      ...this.state,
+      tradeCloseTime: new Date(tradeData.openTime)
+    });
   }
+}
+
+class EntryPointReachedState extends AbstractState {
+  hitTpPoint(tradeData: TradeData): AbstractState {
+    return new TakeProfitReachedState({
+      ...this.state,
+      tradeCloseTime: new Date(tradeData.openTime)
+    });
+  }
+
+  hitSl(tradeData: TradeData): AbstractState {
+    return new StopLossReachedState(this, tradeData);
+  }
+}
+
+class TakeProfitReachedState extends AbstractState {
+  currentTrailingReferencePrice = 0;
+  currentTrailingStopPrice = 0;
+
+  trailingPercentage = 0;
+  trailingActive = false;
+
+  hitEntryPoint(_tradeData: TradeData): AbstractState {
+    return this;
+  }
+
+  hitTpPoint(tradeData: TradeData): AbstractState {
+    const price = tradeData.low;
+
+    const closedTp = { ...this.state.remainingTps[0] };
+
+    const spentOnEntry = this.allocatedAmount * closedTp.percentage;
+    const boughtCoins = spentOnEntry / closedTp.price;
+
+    const detailedEntry: DetailedEntry = {
+      coins: boughtCoins,
+      price: closedTp.price,
+      total: spentOnEntry,
+      entry: closedTp.id,
+      date: new Date(tradeData.openTime)
+    };
+
+    this.state.logger.log({ type: 'sell', price: closedTp.price, spent: spentOnEntry, bought: boughtCoins, timestamp: tradeData.openTime });
+
+    const remainingTps = this.state.remainingTps.filter(x => x.id !== closedTp.id);
+
+    return remainingTps.length === 0
+       ? new AllProfitsDoneState(this, tradeData)
+       : new TakeProfitReachedState({
+        ...this.state,
+        remainingTps
+       });
+  }
+
+  hitSl(TradeData: TradeData): AbstractState {
+    return new StopLossAfterTakeProfitState(this, TradeData);
+  }
+}
+
+class TakeProfitBeforeEntryState extends AbstractState {
+  // boring state, do nothing
+}
+
+class AllProfitsDoneState extends AbstractState {
+  // boring state
+  constructor(previousState: AbstractState, tradeData: TradeData) {
+    const newState: InternalState = {
+      ...previousState.state,
+      tradeCloseTime: new Date(tradeData.openTime),
+      remainingTps: [],
+    };
+
+    super(newState);
+  }
+}
+
+class StopLossReachedState extends AbstractState {
+  // boring state
+  constructor(previousState: AbstractState, tradeData: TradeData) {
+    const newState: InternalState = {
+      ...previousState.state,
+      sl: {
+        coins: previousState.remainingCoins,
+        price: previousState.state.order.sl,
+        entry: -1,
+        total: previousState.remainingCoins * previousState.state.order.sl,
+        date: new Date(tradeData.openTime)
+      }
+    };
+    super(newState);
+  }
+}
+
+class StopLossAfterTakeProfitState extends StopLossReachedState {
+  // boring state
 }
 
 /**

@@ -31,6 +31,20 @@
                 "--allow-all",
             ],
             "attachSimplePort": 9229
+        },
+        {
+            "request": "launch",
+            "name": "Launch Test 01",
+            "type": "node",
+            "program": "${workspaceFolder}/test/backtrack-test-01-no-trailing.ts",
+            "cwd": "${workspaceFolder}",
+            "runtimeExecutable": "C:\\ProgramData\\chocolatey\\lib\\deno\\deno.EXE",
+            "runtimeArgs": [
+                "run",
+                "--inspect-wait",
+                "--allow-all",
+            ],
+            "attachSimplePort": 9229
         }
     ]
 }

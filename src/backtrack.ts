@@ -1,5 +1,8 @@
 import { TradeData } from './binance-api.ts';
 
+export type Strategy = 'Evenly Divided' | 'One Target' | 'Two Targets' | 'Three Targets' | 'Fifty On First Target' | 'Decreasing Exponential'
+  | 'Increasing Exponential' | 'Skip First' | PriceTarget[];
+
 export interface PriceTarget  {
   percentage: number;
 }
@@ -28,8 +31,8 @@ export type TrailingStop = TrailingStopWithout | TrailingStopMovingTarget;
 
 export interface CornixConfiguration {
   amount: number;
-  entries: PriceTarget[];
-  tps: PriceTarget[];
+  entries: Strategy;
+  tps: Strategy;
   trailingStop: TrailingStop;
   trailingTakeProfit: number | 'without';
 }
@@ -64,26 +67,101 @@ export function backtrack(config: CornixConfiguration, order: Order, data: Trade
 
   let state: AbstractState = new InitialState(order, config, logger);
 
-  data.forEach(element => state = state.updateState(element));
+  data.forEach(element => {
+    let previousState = state;
 
-  return { events: logger.events, results: state.info };
+    do {
+      previousState = state;
+      state = state.updateState(element);
+    } while (state != previousState);
+  });
+
+  return { events: logger.events, results: state.info, state };
 }
 
-export function mapPriceTargets(orderTargets: number[], priceTargets: PriceTarget[]): PriceTargetWithPrice[] {
+/**
+ *
+ * @param orderTargets order price targets
+ * @param priceTargets price targets configured in cornix configuration
+ * @returns
+ */
+export function mapPriceTargets(orderTargets: number[], strategy: Strategy): PriceTargetWithPrice[] {
   const result: PriceTargetWithPrice[] = [];
 
-  for (let i = 0; i < orderTargets.length; i++) {
-    if (i >= priceTargets.length)
-      break;
+  if (strategy === 'One Target' || orderTargets.length === 1) {
+    return [ { id: 1, percentage: 100, price: orderTargets[0] } ];
+  }
+  else if (Array.isArray(strategy)) {
+    const priceTargets = strategy;
 
-    const priceTargetIndex = i + 1;
-    const percentage = priceTargets[i].percentage;
-    const price = orderTargets[i];
+    for (let i = 0; i < orderTargets.length; i++) {
+      if (i >= priceTargets.length)
+        break;
 
-    result.push({ id: priceTargetIndex, percentage, price });
+      const priceTargetIndex = i + 1;
+      const percentage = priceTargets[i].percentage;
+      const price = orderTargets[i];
+
+      result.push({ id: priceTargetIndex, percentage, price });
+    }
+
+    return result;
+  }
+  else if (strategy === 'Two Targets') {
+    return orderTargets.filter((x, idx) => idx < 2).map((x, idx) => ({
+      id: idx + 1,
+      percentage: 50,
+      price: x
+    }));
+  }
+  else if (strategy === 'Three Targets') {
+    return orderTargets.filter((x, idx) => idx < 3).map((x, idx) => ({
+      id: idx + 1,
+      percentage: 33.33,
+      price: x
+    }));
+  }
+  else if (strategy === 'Decreasing Exponential' || strategy === 'Increasing Exponential') {
+    const countTargets = orderTargets.length;
+    const max = 100 / ((Math.pow(2, countTargets) - 1) / (Math.pow(2, countTargets) / 2));
+
+    const decreasing = orderTargets.map((x, idx) => ({
+      id: idx + 1,
+      percentage: max / Math.pow(2, idx),
+      price: x
+    }));
+
+    return strategy === 'Decreasing Exponential' ? decreasing : decreasing.toReversed();
+  }
+  else if (strategy === 'Evenly Divided') {
+    const pct = 100 / orderTargets.length;
+
+    return orderTargets.map((x, idx) => ({
+      id: idx + 1,
+      percentage: pct,
+      price: x
+    }));
+  }
+  else if (strategy === 'Fifty On First Target') {
+    const pct = 50 / (orderTargets.length - 1);
+
+    return orderTargets.map((x, idx) => ({
+      id: idx + 1,
+      percentage: idx === 0 ? 50 : pct,
+      price: x
+    }));
+  }
+  else if (strategy === 'Skip First') {
+    const pct = 100 / (orderTargets.length - 1);
+
+    return orderTargets.map((x, idx) => ({
+      id: idx + 1,
+      percentage: idx === 0 ? 0 : pct,
+      price: x
+    }));
   }
 
-  return result;
+  return [ { id: 1, percentage: 100, price: orderTargets[0] } ];
 }
 
 export function sumPct(targets: PriceTargetWithPrice[]): number {
@@ -163,7 +241,7 @@ abstract class AbstractState {
   }
 
   get averageEntryPrice() {
-    return  this.boughtCoins / this.spentAmount;
+    return  this.spentAmount / this.boughtCoins;
   }
 
   get isOpen() {
@@ -187,8 +265,8 @@ abstract class AbstractState {
   }
 
   get pnl() {
-    const gain = Math.abs(this.saleValue - this.averageEntryPrice) / this.averageEntryPrice;
-    return gain * this.leverage;
+    const gainPct = Math.abs(this.saleValue - this.averageEntryPrice) / this.averageEntryPrice;
+    return gainPct * 100 * this.leverage;
   }
 
   constructor(public readonly state: InternalState) {}
@@ -209,7 +287,32 @@ abstract class AbstractState {
     return this;
   }
 
-  hitEntryPoint(_tradeData: TradeData): AbstractState { return this; }
+  hitEntryPoint(tradeData: TradeData): AbstractState {
+    const openedEntry = { ...this.state.remainingEntries[0] };
+
+    const price = openedEntry.price;
+    const time = tradeData.openTime;
+
+    const spentOnEntry = (this.allocatedAmount * openedEntry.percentage) / 100;
+    const boughtCoins = spentOnEntry / price;
+
+    const detailedEntry: DetailedEntry = {
+      coins: boughtCoins,
+      price: price,
+      total: spentOnEntry,
+      entry: openedEntry.id,
+      date: new Date(time)
+    };
+
+    this.state.logger.log({ type: 'buy', price: openedEntry.price, spent: spentOnEntry, bought: boughtCoins, timestamp: time });
+
+    return new EntryPointReachedState({
+      ...this.state,
+      entries: [ ...this.state.entries, detailedEntry ],
+      remainingEntries: this.state.remainingEntries.filter(x => x.id !== openedEntry.id),
+    });
+  }
+
   hitTp(_tradeData: TradeData): AbstractState { return this; }
   hitSl(_tradeData: TradeData): AbstractState { return this; }
 
@@ -304,33 +407,7 @@ class InitialState extends AbstractState {
     super(state);
   }
 
-  hitEntryPoint(tradeData: TradeData): AbstractState {
-    const openedEntry = { ...this.state.remainingEntries[0] };
-
-    const price = openedEntry.price;
-    const time = tradeData.openTime;
-
-    const spentOnEntry = this.allocatedAmount * openedEntry.percentage;
-    const boughtCoins = spentOnEntry / price;
-
-    const detailedEntry: DetailedEntry = {
-      coins: boughtCoins,
-      price: price,
-      total: spentOnEntry,
-      entry: openedEntry.id,
-      date: new Date(time)
-    };
-
-    this.state.logger.log({ type: 'buy', price: openedEntry.price, spent: spentOnEntry, bought: boughtCoins, timestamp: time });
-
-    return new EntryPointReachedState({
-      ...this.state,
-      entries: [ ...this.state.entries, detailedEntry ],
-      remainingEntries: this.state.remainingEntries.filter(x => x.id !== openedEntry.id),
-    });
-  }
-
-  hitTpPoint(tradeData: TradeData): AbstractState {
+  hitTp(tradeData: TradeData): AbstractState {
     return new TakeProfitBeforeEntryState({
       ...this.state,
       tradeCloseTime: new Date(tradeData.openTime)
@@ -339,11 +416,31 @@ class InitialState extends AbstractState {
 }
 
 class EntryPointReachedState extends AbstractState {
-  hitTpPoint(tradeData: TradeData): AbstractState {
-    return new TakeProfitReachedState({
-      ...this.state,
-      tradeCloseTime: new Date(tradeData.openTime)
-    });
+  hitTp(tradeData: TradeData): AbstractState {
+    const price = tradeData.low;
+
+    const closedTp = { ...this.state.remainingTps[0] };
+
+    const soldCoins = (this.remainingCoins * closedTp.percentage) / 100;
+    const spentOnTp = soldCoins * closedTp.price;
+    // (this.remainingAmount * closedTp.percentage) / 100;
+    // spentOnTp / closedTp.price;
+
+    const detailedTp: DetailedEntry = {
+      coins: soldCoins,
+      price: closedTp.price,
+      total: spentOnTp,
+      entry: closedTp.id,
+      date: new Date(tradeData.openTime)
+    };
+
+    this.state.logger.log({ type: 'sell', price: closedTp.price, total: spentOnTp, sold: soldCoins, timestamp: tradeData.openTime });
+
+    const remainingTps = this.state.remainingTps.filter(x => x.id !== closedTp.id);
+
+    return remainingTps.length === 0
+       ? new AllProfitsDoneState(this, tradeData, detailedTp)
+       : new TakeProfitReachedState(this, tradeData, detailedTp);
   }
 
   hitSl(tradeData: TradeData): AbstractState {
@@ -351,43 +448,26 @@ class EntryPointReachedState extends AbstractState {
   }
 }
 
-class TakeProfitReachedState extends AbstractState {
+class TakeProfitReachedState extends EntryPointReachedState {
   currentTrailingReferencePrice = 0;
   currentTrailingStopPrice = 0;
 
   trailingPercentage = 0;
   trailingActive = false;
 
-  hitEntryPoint(_tradeData: TradeData): AbstractState {
-    return this;
-  }
-
-  hitTpPoint(tradeData: TradeData): AbstractState {
-    const price = tradeData.low;
-
-    const closedTp = { ...this.state.remainingTps[0] };
-
-    const spentOnEntry = this.allocatedAmount * closedTp.percentage;
-    const boughtCoins = spentOnEntry / closedTp.price;
-
-    const detailedEntry: DetailedEntry = {
-      coins: boughtCoins,
-      price: closedTp.price,
-      total: spentOnEntry,
-      entry: closedTp.id,
-      date: new Date(tradeData.openTime)
+  constructor(parentState: AbstractState, tradeData: TradeData, tp: DetailedEntry) {
+    const remainingTps = parentState.state.remainingTps.filter(x => x.id !== tp.entry);
+    const newState: InternalState = {
+      ...parentState.state,
+      remainingTps,
+      takeProfits: [...parentState.state.takeProfits, tp ],
     };
 
-    this.state.logger.log({ type: 'sell', price: closedTp.price, spent: spentOnEntry, bought: boughtCoins, timestamp: tradeData.openTime });
+    super(newState);
+  }
 
-    const remainingTps = this.state.remainingTps.filter(x => x.id !== closedTp.id);
-
-    return remainingTps.length === 0
-       ? new AllProfitsDoneState(this, tradeData)
-       : new TakeProfitReachedState({
-        ...this.state,
-        remainingTps
-       });
+  hitEntryPoint(_tradeData: TradeData): AbstractState {
+    return this;
   }
 
   hitSl(TradeData: TradeData): AbstractState {
@@ -401,11 +481,12 @@ class TakeProfitBeforeEntryState extends AbstractState {
 
 class AllProfitsDoneState extends AbstractState {
   // boring state
-  constructor(previousState: AbstractState, tradeData: TradeData) {
+  constructor(previousState: AbstractState, tradeData: TradeData, tp: DetailedEntry) {
     const newState: InternalState = {
       ...previousState.state,
       tradeCloseTime: new Date(tradeData.openTime),
       remainingTps: [],
+      takeProfits: [ ...previousState.state.takeProfits, tp ],
     };
 
     super(newState);

@@ -214,7 +214,7 @@ type InternalState = {
   closePrices: number[];
   profits: number[];
 
-  currentSl: number;
+  currentSl: number|null;
 
   logger: Logger;
 };
@@ -224,8 +224,20 @@ abstract class AbstractState {
     return this.state.allocatedAmount;
   }
 
+  get allocatedAmountWithLev() {
+    return this.state.allocatedAmount * this.leverage;
+  }
+
   get spentAmount() {
+    return this.spentAmountWithLev / this.leverage;
+  }
+
+  get spentAmountWithLev() {
     return this.state.entries.reduce((sum, curr) => sum + curr.total, 0);
+  }
+
+  get remainingAmountWithLev() {
+    return this.allocatedAmountWithLev - this.spentAmountWithLev;
   }
 
   get remainingAmount() {
@@ -265,14 +277,21 @@ abstract class AbstractState {
   }
 
   get pnl() {
-    const gainPct = Math.abs(this.saleValue - this.averageEntryPrice) / this.averageEntryPrice;
-    return gainPct * 100 * this.leverage;
+    const gainPct = this.profit / this.spentAmount;
+    return gainPct * 100;
+  }
+
+  get profit() {
+    return this.state.order.direction === 'LONG'
+      ? this.saleValue - this.spentAmountWithLev
+      : this.spentAmountWithLev - this.saleValue;
   }
 
   constructor(public readonly state: InternalState) {}
 
   updateState(tradeData: TradeData): AbstractState {
-    if (tradeData.openTime < this.state.tradeOpenTime.getTime()) {
+    const tradeOpenTime = this.state.tradeOpenTime.getTime()
+    if (tradeData.openTime < tradeOpenTime) {
       return this;
     }
 
@@ -294,17 +313,19 @@ abstract class AbstractState {
     const time = tradeData.openTime;
 
     const spentOnEntry = (this.allocatedAmount * openedEntry.percentage) / 100;
-    const boughtCoins = spentOnEntry / price;
+    const spentOnEntryWithLeverage = spentOnEntry * this.leverage;
+    const boughtCoins = spentOnEntryWithLeverage / price;
 
     const detailedEntry: DetailedEntry = {
       coins: boughtCoins,
       price: price,
-      total: spentOnEntry,
+      total: spentOnEntryWithLeverage,
       entry: openedEntry.id,
       date: new Date(time)
     };
 
-    this.state.logger.log({ type: 'buy', price: openedEntry.price, spent: spentOnEntry, bought: boughtCoins, timestamp: time });
+    this.state.logger.log({ type: 'buy', price: openedEntry.price, spent: spentOnEntry,
+      spentWithLeverage: spentOnEntryWithLeverage,  bought: boughtCoins, timestamp: time });
 
     return new EntryPointReachedState({
       ...this.state,
@@ -341,25 +362,27 @@ abstract class AbstractState {
   }
 
   matchesStopLossPrice(tradeData: TradeData) {
-    if (this.state.order.sl == null) {
+    if (this.state.currentSl == null) {
       return false;
     }
 
     if (this.state.order.direction === 'LONG') {
-      return tradeData.low <= this.state.order.sl;
+      return tradeData.low <= this.state.currentSl;
     } else {
-      return tradeData.high >= this.state.order.sl;
+      return tradeData.high >= this.state.currentSl;
     }
   }
 
   get info() {
     return {
-      countEntries: this.state.entries.length,
-      highestTp: this.state.takeProfits.length,
+      reachedEntries: this.state.entries.length,
+      reachedTps: this.state.takeProfits.length,
       openTime: this.state.tradeOpenTime,
       closeTime: this.state.tradeCloseTime,
       isClosed: this.state.tradeCloseTime != null,
-      isProfitable: false,
+      isProfitable: this.pnl > 0,
+      pnl: this.pnl,
+      profit: this.profit,
       hitSl: this.state.sl != null,
     };
   }
@@ -421,7 +444,7 @@ class EntryPointReachedState extends AbstractState {
 
     const closedTp = { ...this.state.remainingTps[0] };
 
-    const soldCoins = (this.remainingCoins * closedTp.percentage) / 100;
+    const soldCoins = (this.boughtCoins * closedTp.percentage) / 100;
     const spentOnTp = soldCoins * closedTp.price;
     // (this.remainingAmount * closedTp.percentage) / 100;
     // spentOnTp / closedTp.price;
@@ -456,11 +479,21 @@ class TakeProfitReachedState extends EntryPointReachedState {
   trailingActive = false;
 
   constructor(parentState: AbstractState, tradeData: TradeData, tp: DetailedEntry) {
+    let newSl = parentState.state.currentSl;
+    if (parentState.state.config.trailingStop.type == 'moving-target' && parentState.state.config.trailingStop.trigger == 1) {
+      if (tp.entry === 1) {
+        newSl = parentState.averageEntryPrice;
+      } else {
+        newSl = parentState.state.takeProfits[parentState.state.takeProfits.length - 1 ].price;
+      }
+    }
+
     const remainingTps = parentState.state.remainingTps.filter(x => x.id !== tp.entry);
     const newState: InternalState = {
       ...parentState.state,
       remainingTps,
       takeProfits: [...parentState.state.takeProfits, tp ],
+      currentSl: newSl,
     };
 
     super(newState);
@@ -496,15 +529,18 @@ class AllProfitsDoneState extends AbstractState {
 class StopLossReachedState extends AbstractState {
   // boring state
   constructor(previousState: AbstractState, tradeData: TradeData) {
+    const closeTime = new Date(tradeData.openTime);
+
     const newState: InternalState = {
       ...previousState.state,
       sl: {
         coins: previousState.remainingCoins,
-        price: previousState.state.order.sl,
+        price: previousState.state.currentSl!,
         entry: -1,
-        total: previousState.remainingCoins * previousState.state.order.sl,
-        date: new Date(tradeData.openTime)
-      }
+        total: previousState.remainingCoins * previousState.state.currentSl!,
+        date: closeTime
+      },
+      tradeCloseTime: closeTime
     };
     super(newState);
   }

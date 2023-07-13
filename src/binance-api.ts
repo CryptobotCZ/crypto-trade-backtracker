@@ -15,7 +15,7 @@ export interface TradeData {
 
 type ItemArray = [number, string, string, string, string, string, number, string, number, string, string, string];
 
-function transformArrayToObject(itemArray: ItemArray): TradeData {
+export function transformArrayToObject(itemArray: ItemArray): TradeData {
     return {
         openTime: itemArray[0],
         open: parseFloat(itemArray[1]),

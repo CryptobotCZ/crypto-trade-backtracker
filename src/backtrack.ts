@@ -193,6 +193,11 @@ interface DetailedEntry {
    * Date
    */
   date: Date;
+
+  /**
+   * State
+   */
+  state?: string;
 }
 
 type InternalState = {
@@ -253,11 +258,15 @@ abstract class AbstractState {
   }
 
   get averageEntryPrice() {
-    return  this.spentAmount / this.boughtCoins;
+    return  this.spentAmountWithLev / this.boughtCoins;
   }
 
   get isOpen() {
     return this.state.entries.length > 0;
+  }
+
+  get isClosed() {
+    return this.state.tradeCloseTime != null;
   }
 
   get isFullyOpen() {
@@ -291,7 +300,7 @@ abstract class AbstractState {
 
   updateState(tradeData: TradeData): AbstractState {
     const tradeOpenTime = this.state.tradeOpenTime.getTime()
-    if (tradeData.openTime < tradeOpenTime) {
+    if (tradeData.openTime < tradeOpenTime || this.isClosed) {
       return this;
     }
 
@@ -376,7 +385,7 @@ abstract class AbstractState {
   get info() {
     return {
       reachedEntries: this.state.entries.length,
-      reachedTps: this.state.takeProfits.length,
+      reachedTps: this.state.takeProfits.at(-1)?.entry ?? 0,
       openTime: this.state.tradeOpenTime,
       closeTime: this.state.tradeCloseTime,
       isClosed: this.state.tradeCloseTime != null,
@@ -385,6 +394,21 @@ abstract class AbstractState {
       profit: this.profit,
       hitSl: this.state.sl != null,
     };
+  }
+
+  getPriceForSl(tradeData: TradeData) {
+    // get the lowest reached price in the candle
+    return this.state.order.direction === 'LONG' ? tradeData.low : tradeData.high;
+  }
+
+  getPriceForTp(tradeData: TradeData) {
+    // get the highest reached price in the candle
+    return this.state.order.direction === 'LONG' ? tradeData.high : tradeData.low;
+  }
+
+  getPriceForTrailingTp(tradeData: TradeData) {
+    // get the lowest reached price in the candle
+    return this.getPriceForSl(tradeData);
   }
 }
 
@@ -401,7 +425,7 @@ class InitialState extends AbstractState {
       throw new Error('entries percentage must add to 100%');
     }
 
-    if (sumPct(remainingTps) !== 100) {
+    if (Math.abs(sumPct(remainingTps) - 100.0) > 0.1) {
       throw new Error('TPs percentage must add to 100%');
     }
 
@@ -439,22 +463,79 @@ class InitialState extends AbstractState {
 }
 
 class EntryPointReachedState extends AbstractState {
-  hitTp(tradeData: TradeData): AbstractState {
-    const price = tradeData.low;
+  currentTrailingReferencePrice = 0;
+  currentTrailingStopPrice = 0;
+  trailingActive = false;
+  highestReachedTp: PriceTargetWithPrice|null = null;
 
+  hitTp(tradeData: TradeData): AbstractState {
+    const price = this.getPriceForTp(tradeData);
+    const priceToStopTtp = this.getPriceForTrailingTp(tradeData);
+
+    if (this.state.config.trailingTakeProfit === 'without') {
+      return this.hitTpWithoutTrailing(tradeData);
+    } else if (!this.trailingActive) {
+      this.trailingActive = true;
+      this.currentTrailingReferencePrice = price;
+      this.currentTrailingStopPrice = price * (1 - (this.state.config.trailingTakeProfit / this.leverage));
+
+      this.state.logger.log({ type: 'trailing activated', price, timestamp: tradeData.openTime });
+
+      return this;
+    } else if (price < this.currentTrailingStopPrice) {
+      return this.hitTpWithTrailing(tradeData, this.currentTrailingStopPrice);
+    } else if (price > this.currentTrailingReferencePrice) {
+      this.currentTrailingReferencePrice = price;
+      this.currentTrailingStopPrice = price * (1 - (this.state.config.trailingTakeProfit / this.leverage));
+      this.highestReachedTp = this.state.remainingTps.toReversed().find(x => x.price < price) ?? null;
+
+      this.state.logger.log({ type: 'trailing price updated', price, timestamp: tradeData.openTime });
+    }
+
+    return this;
+  }
+
+  hitTpWithTrailing(tradeData: TradeData, trailingStopPrice: number): AbstractState {
+    const price = trailingStopPrice;
+
+    const highestReachedTp = this.highestReachedTp ?? this.state.remainingTps.toReversed().find(x => x.price < price)!;
+    const sumpPercentage = this.state.remainingTps.filter(x => x.id <= highestReachedTp.id).reduce((sum, x) => x.percentage + sum, 0);
+
+    const closedTp = { ...highestReachedTp };
+
+    const soldCoins = (this.boughtCoins * sumpPercentage) / 100;
+    const spentOnTp = soldCoins * price;
+
+    const detailedTp: DetailedEntry = {
+      coins: soldCoins,
+      price: price,
+      total: spentOnTp,
+      entry: closedTp.id,
+      date: new Date(tradeData.openTime)
+    };
+
+    this.state.logger.log({ type: 'sell with trailing', price: price, total: spentOnTp, sold: soldCoins, timestamp: tradeData.openTime });
+
+    const remainingTps = this.state.remainingTps.filter(x => x.id > closedTp.id);
+
+    return remainingTps.length === 0
+       ? new AllProfitsDoneState(this, tradeData, detailedTp)
+       : new TakeProfitReachedState(this, tradeData, detailedTp);
+  }
+
+  hitTpWithoutTrailing(tradeData: TradeData): AbstractState {
     const closedTp = { ...this.state.remainingTps[0] };
 
     const soldCoins = (this.boughtCoins * closedTp.percentage) / 100;
     const spentOnTp = soldCoins * closedTp.price;
-    // (this.remainingAmount * closedTp.percentage) / 100;
-    // spentOnTp / closedTp.price;
 
     const detailedTp: DetailedEntry = {
       coins: soldCoins,
       price: closedTp.price,
       total: spentOnTp,
       entry: closedTp.id,
-      date: new Date(tradeData.openTime)
+      date: new Date(tradeData.openTime),
+      state: 'merged'
     };
 
     this.state.logger.log({ type: 'sell', price: closedTp.price, total: spentOnTp, sold: soldCoins, timestamp: tradeData.openTime });
@@ -472,27 +553,30 @@ class EntryPointReachedState extends AbstractState {
 }
 
 class TakeProfitReachedState extends EntryPointReachedState {
-  currentTrailingReferencePrice = 0;
-  currentTrailingStopPrice = 0;
-
-  trailingPercentage = 0;
-  trailingActive = false;
-
   constructor(parentState: AbstractState, tradeData: TradeData, tp: DetailedEntry) {
+    const mergedTps: DetailedEntry[] = parentState.state.remainingTps.filter(x => x.id < tp.entry).map(x => ({
+      entry: x.id,
+      price: x.price,
+      coins: 0,
+      total: 0,
+      date: new Date(tradeData.openTime)
+    }));
+    const activatedTakeProfits = [ ...parentState.state.takeProfits, ...mergedTps, tp ];
+    const remainingTps = parentState.state.remainingTps.filter(x => x.id > tp.entry);
+
     let newSl = parentState.state.currentSl;
     if (parentState.state.config.trailingStop.type == 'moving-target' && parentState.state.config.trailingStop.trigger == 1) {
       if (tp.entry === 1) {
         newSl = parentState.averageEntryPrice;
       } else {
-        newSl = parentState.state.takeProfits[parentState.state.takeProfits.length - 1 ].price;
+        newSl = parentState.state.order.tps[tp.entry - 1 - 1]; //activatedTakeProfits[activatedTakeProfits.length - 1 ].price;
       }
     }
 
-    const remainingTps = parentState.state.remainingTps.filter(x => x.id !== tp.entry);
     const newState: InternalState = {
       ...parentState.state,
       remainingTps,
-      takeProfits: [...parentState.state.takeProfits, tp ],
+      takeProfits: activatedTakeProfits,
       currentSl: newSl,
     };
 
@@ -530,14 +614,19 @@ class StopLossReachedState extends AbstractState {
   // boring state
   constructor(previousState: AbstractState, tradeData: TradeData) {
     const closeTime = new Date(tradeData.openTime);
+    const slPrice = previousState.state.currentSl!;
+    const soldCoins = previousState.remainingCoins;
+    const total = soldCoins * slPrice;
+
+    previousState.state.logger.log({ type: 'sl', price: slPrice, total: total, sold: soldCoins, timestamp: tradeData.openTime });
 
     const newState: InternalState = {
       ...previousState.state,
       sl: {
-        coins: previousState.remainingCoins,
-        price: previousState.state.currentSl!,
+        coins: soldCoins,
+        price: slPrice,
         entry: -1,
-        total: previousState.remainingCoins * previousState.state.currentSl!,
+        total: total,
         date: closeTime
       },
       tradeCloseTime: closeTime

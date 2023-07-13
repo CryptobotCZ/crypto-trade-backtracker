@@ -301,4 +301,58 @@ async function test05() {
     console.log(state.info);
 }
 
+async function test06() {
+    const ttp = 0.2;
+    const step = 0.1;
+
+
+    const directory = "data";
+    let tradeData: any[] = [];
+
+    for await (const dirEntry of Deno.readDir(directory)) {
+      if (dirEntry.isFile && dirEntry.name.endsWith(".json")) {
+        const fileContent = await Deno.readTextFile(`${directory}/${dirEntry.name}`);
+        const currentFileData = JSON.parse(fileContent);
+        tradeData = [ ...tradeData, ...currentFileData ];
+      }
+    }
+    tradeData = tradeData.map(x => transformArrayToObject(x));
+
+    const date = new Date(2023, 7-1, 9, 19, 25);
+    const order: Order = {
+        coin: 'BTCUSDT',
+        leverage: 125,
+        exchange: 'Binance Futures',
+        entries: [ 30284.7 ],
+        tps: [ 30736.9, 31039.8, 31342.6, 31796.8, 32099.7, 32553.9 ],
+        sl: 28500,
+        date,
+        timestamp: date.getTime(), // new Date(2023, 6, 15, 16, 50).getTime()
+    };
+
+    const best = { pnl: 0, trailing: 0 };
+
+    for (let i = 1; i < 1000; i++) {
+        const trailingTakeProfit = i * 0.001;
+        const config: CornixConfiguration = {
+            amount: 9.64,
+            entries: [ { percentage: 100 } ],
+            tps: 'Evenly Divided',
+            trailingTakeProfit,
+            trailingStop: { type: 'moving-target', trigger: 1 }
+        };
+
+        const { events, results, state } = backtrack(config, order, tradeData);
+        console.log(`Trailing ${trailingTakeProfit.toFixed(3)} gives ${state.pnl.toFixed(2)}%`);
+
+        if (state.pnl > best.pnl) {
+            best.pnl = state.pnl;
+            best.trailing = trailingTakeProfit;
+        }
+    }
+
+    console.log(`Best config is: ${(best.trailing * 100).toFixed(3)}% it gives ${best.pnl.toFixed(2)}%`);
+}
+
 await test05();
+await test06();

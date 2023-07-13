@@ -410,6 +410,15 @@ abstract class AbstractState {
     // get the lowest reached price in the candle
     return this.getPriceForSl(tradeData);
   }
+
+  getEffectiveTrailingPct() {
+    if (this.state.config.trailingTakeProfit !== 'without') {
+      const minTrailing = 0.2 / 100;
+      return Math.max(minTrailing, this.state.config.trailingTakeProfit / this.leverage);
+    }
+
+    return 0;
+  }
 }
 
 class InitialState extends AbstractState {
@@ -477,7 +486,7 @@ class EntryPointReachedState extends AbstractState {
     } else if (!this.trailingActive) {
       this.trailingActive = true;
       this.currentTrailingReferencePrice = price;
-      this.currentTrailingStopPrice = price * (1 - (this.state.config.trailingTakeProfit / this.leverage));
+      this.currentTrailingStopPrice = price * (1 - this.getEffectiveTrailingPct());
 
       this.state.logger.log({ type: 'trailing activated', price, timestamp: tradeData.openTime });
 
@@ -486,7 +495,7 @@ class EntryPointReachedState extends AbstractState {
       return this.hitTpWithTrailing(tradeData, this.currentTrailingStopPrice);
     } else if (price > this.currentTrailingReferencePrice) {
       this.currentTrailingReferencePrice = price;
-      this.currentTrailingStopPrice = price * (1 - (this.state.config.trailingTakeProfit / this.leverage));
+      this.currentTrailingStopPrice = price * (1 - this.getEffectiveTrailingPct());
       this.highestReachedTp = this.state.remainingTps.toReversed().find(x => x.price < price) ?? null;
 
       this.state.logger.log({ type: 'trailing price updated', price, timestamp: tradeData.openTime });

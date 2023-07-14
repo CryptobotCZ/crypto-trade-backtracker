@@ -1,0 +1,12 @@
+[
+  {
+    "coin": "BTCUSDT",
+    "direction": "SHORT",
+    "date": "2023-07-14T00:25:00.000Z",
+    "leverage": 125,
+    "exchange": "ByBit",
+    "entries": [ 35000 ],
+    "tps": [ 28000.9, 27000, 26000, 25000, 24000, 23000 ],
+    "sl": 37000
+  }
+]

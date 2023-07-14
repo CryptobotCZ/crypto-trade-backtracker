@@ -47,6 +47,21 @@ export function backtrack(config: CornixConfiguration, order: Order, data: Trade
   return { events: logger.events, results: state.info, state };
 }
 
+export function getBackTrackEngine(config: CornixConfiguration, order: Order) {
+  const logger = {
+    events: [] as LogEvent[],
+    log: function(event: LogEvent) {
+      this.events.push(event)
+    },
+    verbose: function(event: LogEvent) {
+      this.log(event);
+    }
+  };
+
+  let state: AbstractState = new InitialState(order, config, logger);
+  return state;
+}
+
 export function sumPct(targets: PriceTargetWithPrice[]): number {
   return targets.reduce((sum, x) => sum + x.percentage, 0);
 }
@@ -323,7 +338,7 @@ class InitialState extends AbstractState {
     }
 
     const direction = order.direction ??
-      remainingTps[0].price > remainingEntries[0].price ? 'LONG' : 'SHORT';
+      (remainingTps[0].price > remainingEntries[0].price ? 'LONG' : 'SHORT');
 
     logger = logger ?? { log: () => {}, verbose: () => {} };
 

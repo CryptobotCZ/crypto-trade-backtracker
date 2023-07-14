@@ -19,7 +19,28 @@
             "args": [
                 "backtrack",
                 "--debug",
+                "--downloadBinanceData",
                 "C:\\projects\\crypto\\backtracking\\data\\test-orders-02.json",
+            ],
+            "attachSimplePort": 9229
+        },
+        {
+            "request": "launch",
+            "name": "Debug unopened trade",
+            "type": "node",
+            "program": "${workspaceFolder}/main.ts",
+            "cwd": "${workspaceFolder}",
+            "runtimeExecutable": "C:\\ProgramData\\chocolatey\\lib\\deno\\deno.EXE",
+            "runtimeArgs": [
+                "run",
+                "--inspect-wait",
+                "--allow-all",
+            ],
+            "args": [
+                "backtrack",
+                "--debug",
+                "--downloadBinanceData",
+                "C:\\projects\\crypto\\backtracking\\data\\test-orders-03.json",
             ],
             "attachSimplePort": 9229
         },

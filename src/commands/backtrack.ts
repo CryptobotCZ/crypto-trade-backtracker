@@ -1,6 +1,6 @@
 import * as fs from "https://deno.land/std@0.192.0/fs/mod.ts";
 
-import { backtrack, Order } from '../backtrack-engine.ts';
+import { backtrack, getBackTrackEngine, Order } from '../backtrack-engine.ts';
 import {  BinanceItemArray, getTradeData, TradeData, transformArrayToObject } from '../binance-api.ts';
 import { CornixConfiguration } from '../cornix.ts';
 
@@ -78,12 +78,16 @@ export async function backtrackCommand(args: BackTrackArgs) {
         : defaultCornixConfig;
 
     const orders = (await readInputFilesFromJson<Order>(args.orderFiles)).map(x => {
-      return { ...x, date: new Date(x.date) };
+      return { ...x, date: x.date != null ? new Date(x.date) : new Date(Date.now()) };
     });
 
     orders.forEach(async order => {
       try {
-        await backTrackSingleOrder(args, order, cornixConfig);
+        if (args.downloadBinanceData) {
+          await backtrackWithBinanceUntilTradeCloseOrCurrentDate(args, order, cornixConfig);
+        } else {
+          await backTrackSingleOrder(args, order, cornixConfig);
+        }
       } catch (error) {
         console.error(error);
       }
@@ -112,6 +116,43 @@ async function backTrackSingleOrder(args: BackTrackArgs, order: Order, cornixCon
     events.forEach(event => console.log(JSON.stringify(event)));
   }
 
+  console.log(`Results for coin ${order.coin}: `);
+  console.log(JSON.stringify(results));
+}
+
+async function backtrackWithBinanceUntilTradeCloseOrCurrentDate(args: BackTrackArgs, order: Order, cornixConfig: CornixConfiguration) {
+  if (args.debug) {
+    console.log(`Backtracking coin ${order.coin}: `);
+    console.log(JSON.stringify(order));
+  }
+
+  let currentDate = order.date;
+  let state = getBackTrackEngine(cornixConfig, order);
+
+  do {
+    const currentTradeData = await getTradeData(order.coin, '1m', currentDate);
+
+    if (currentTradeData.length === 0) {
+      break;
+    }
+
+    currentTradeData.forEach(element => {
+      let previousState = state;
+
+      do {
+        previousState = state;
+        state = state.updateState(element);
+      } while (state != previousState);
+    });
+
+    if (state.isClosed) {
+      break;
+    }
+
+    currentDate = new Date(currentTradeData.at(-1)?.closeTime!);
+  } while(true);
+
+  const results = state.info;
   console.log(`Results for coin ${order.coin}: `);
   console.log(JSON.stringify(results));
 }

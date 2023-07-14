@@ -13,9 +13,9 @@ export interface TradeData {
     ignore: string;
 }
 
-type ItemArray = [number, string, string, string, string, string, number, string, number, string, string, string];
+export type BinanceItemArray = [number, string, string, string, string, string, number, string, number, string, string, string];
 
-export function transformArrayToObject(itemArray: ItemArray): TradeData {
+export function transformArrayToObject(itemArray: BinanceItemArray): TradeData {
     return {
         openTime: itemArray[0],
         open: parseFloat(itemArray[1]),
@@ -50,7 +50,7 @@ enum TimeInterval {
     months1 = "1M"
 }
 
-export async function getTradeData(pair: string, interval: TimeInterval, startTime?: Date|number) {
+export async function getTradeData(pair: string, interval: string, startTime?: Date|number) {
     const url = 'https://fapi.binance.com/fapi/v1/klines';
 
     const resultStartTime = typeof startTime === 'number'
@@ -69,6 +69,10 @@ export async function getTradeData(pair: string, interval: TimeInterval, startTi
 
     const response = await fetch(urlWithParams);
 
-    const json = await response.json() as ItemArray[];
+    if (response.status !== 200) {
+        throw new Error(`Invalid status ${response.status} for coin ${pair}`);
+    }
+
+    const json = await response.json() as BinanceItemArray[];
     return json.map(x => transformArrayToObject(x));
 }

@@ -16,6 +16,11 @@
                 "--inspect-wait",
                 "--allow-all",
             ],
+            "args": [
+                "backtrack",
+                "--debug",
+                "C:\\projects\\crypto\\backtracking\\data\\test-orders-02.json",
+            ],
             "attachSimplePort": 9229
         },
         {

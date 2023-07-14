@@ -1,0 +1,32 @@
+[
+  {
+    "coin": "MATICUSDT",
+    "direction": "SHORT",
+    "date": "2023-02-18T16:00:02.000Z",
+    "leverage": 50,
+    "exchange": "Cross 50x",
+    "entries": [1.5101],
+    "tps": [1.4859, 1.4693, 1.4542],
+    "sl": 1.554
+  },
+  {
+    "coin": "ETHUSDT",
+    "direction": "SHORT",
+    "date": "2023-02-18T20:35:01.000Z",
+    "leverage": 50,
+    "exchange": "Cross 50x",
+    "entries": [1681.11],
+    "tps": [1665.98, 1647.49, 1629],
+    "sl": 1714.4
+  },
+  {
+    "coin": "ETHUSDT",
+    "direction": "LONG",
+    "date": "2023-02-19T05:30:05.000Z",
+    "leverage": 50,
+    "exchange": "Cross 50x",
+    "entries": [1708.47],
+    "tps": [1723.85, 1742.64, 1761.43],
+    "sl": 1674.64
+  }
+]

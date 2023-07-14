@@ -19,6 +19,7 @@ export type LogFunction = (status: LogEvent) => void;
 
 export interface Logger {
   log: (status: LogEvent) => void;
+  verbose: (status: LogEvent) => void;
 }
 
 export function backtrack(config: CornixConfiguration, order: Order, data: TradeData[]) {
@@ -26,6 +27,9 @@ export function backtrack(config: CornixConfiguration, order: Order, data: Trade
     events: [] as LogEvent[],
     log: function(event: LogEvent) {
       this.events.push(event)
+    },
+    verbose: function(event: LogEvent) {
+      this.log(event);
     }
   };
 
@@ -180,6 +184,7 @@ abstract class AbstractState {
   updateState(tradeData: TradeData): AbstractState {
     const tradeOpenTime = this.state.tradeOpenTime.getTime()
     if (tradeData.openTime < tradeOpenTime || this.isClosed) {
+      this.state.logger.verbose({ type: 'info', text: 'Incorrect time', orderTime: tradeOpenTime, candleTime: tradeData.openTime });
       return this;
     }
 
@@ -320,11 +325,11 @@ class InitialState extends AbstractState {
     const direction = order.direction ??
       remainingTps[0].price > remainingEntries[0].price ? 'LONG' : 'SHORT';
 
-    logger = logger ?? { log: function() {} };
+    logger = logger ?? { log: () => {}, verbose: () => {} };
 
     const state: InternalState = {
       allocatedAmount: order.amount ?? config.amount,
-      tradeOpenTime: new Date(order.timestamp),
+      tradeOpenTime: order.date, // new Date(order.timestamp),
       remainingEntries,
       remainingTps,
       order: { ...order, direction },

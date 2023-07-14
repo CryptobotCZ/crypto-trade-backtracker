@@ -1,5 +1,14 @@
 {
   "tasks": {
     "dev": "deno run --watch main.ts"
-  }
+  },
+  "compilerOptions": {
+    "lib": [
+      "deno.ns",
+      "dom",
+      "dom.iterable",
+      "dom.asynciterable"
+    ]
+  },
+  "importMap": "./import_map.json"
 }

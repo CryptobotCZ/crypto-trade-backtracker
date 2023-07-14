@@ -1,7 +1,8 @@
 import { TradeData, transformArrayToObject } from './../src/binance-api.ts';
-import { CornixConfiguration, backtrack, Order } from "../src/backtrack.ts";
+import { backtrack, Order } from "../src/backtrack-engine.ts";
 import { getTrade } from "./_helpers.ts";
 import { assertEquals } from "https://deno.land/std@0.188.0/testing/asserts.ts";
+import { CornixConfiguration } from "../src/cornix.ts";
 
 const config: CornixConfiguration = {
     amount: 100,

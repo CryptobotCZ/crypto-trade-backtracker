@@ -250,25 +250,33 @@ abstract class AbstractState {
       entries.forEach((entry, index) => {
         ['up', 'down'].forEach(direction => {
           if (this.crossedPrice(tradeData, entry, direction)) {
-            this.state.logger.log({ type: 'cross', direction, subtype: 'entry', id: index + 1, price: entry, timestamp: tradeData.openTime });
+            this.state.logger.log({ type: 'cross', direction, subtype: 'entry', id: index + 1, price: entry, timestamp: tradeData.openTime, tradeData });
           }
         });
       });
 
       ['up', 'down'].forEach(direction => {
         if (this.crossedPrice(tradeData, this.averageEntryPrice, direction)) {
-          this.state.logger.log({ type: 'cross', direction, subtype: 'averageEntry', price: this.averageEntryPrice, timestamp: tradeData.openTime });
+          this.state.logger.log({ type: 'cross', direction, subtype: 'averageEntry', price: this.averageEntryPrice, timestamp: tradeData.openTime, tradeData });
         }
       });
 
       const tps = this.state.order.tps;
       tps.forEach((tp, index) => {
         ['up', 'down'].forEach(direction => {
-          if (this.crossedPrice(tradeData, this.averageEntryPrice, direction)) {
-            this.state.logger.log({ type: 'cross', direction, subtype: 'tp', id: index + 1, price: tp, timestamp: tradeData.openTime });
+          if (this.crossedPrice(tradeData, tp, direction)) {
+            this.state.logger.log({ type: 'cross', direction, subtype: 'tp', id: index + 1, price: tp, timestamp: tradeData.openTime, tradeData });
           }
         });
       });
+
+      if (this.state.order.sl) {
+        ['up', 'down'].forEach(direction => {
+          if (this.crossedPrice(tradeData, this.state.order.sl, direction)) {
+            this.state.logger.log({ type: 'cross', direction, subtype: 'sl', price: this.state.order.sl, timestamp: tradeData.openTime, tradeData });
+          }
+        });
+      }
     }
   }
 

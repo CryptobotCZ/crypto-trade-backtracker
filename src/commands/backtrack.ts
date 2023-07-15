@@ -144,12 +144,12 @@ async function backtrackWithBinanceUntilTradeCloseOrCurrentDate(args: BackTrackA
       break;
     }
 
-    for (let element of currentTradeData) {
+    for (let tradeEntry of currentTradeData) {
       let previousState = state;
 
       do {
         previousState = state;
-        state = state.updateState(element);
+        state = state.updateState(tradeEntry);
       } while (state != previousState);
 
       if (state.isClosed) {
@@ -179,6 +179,8 @@ async function backtrackWithBinanceUntilTradeCloseOrCurrentDate(args: BackTrackA
         }
     });
 
-    console.log(JSON.stringify(uniqueCrosses));
+    const sortedUniqueCrosses = Object.keys(uniqueCrosses).map(x => uniqueCrosses[x]).toSorted((a, b) => a.timestamp - b.timestamp);
+
+    console.log(JSON.stringify(sortedUniqueCrosses));
   }
 }

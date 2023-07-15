@@ -10,6 +10,7 @@ import {
 } from '../binance-api.ts';
 import { CornixConfiguration } from '../cornix.ts';
 import {writeJson} from "https://deno.land/x/jsonfile@1.0.0/write_json.ts";
+import {number} from "https://deno.land/x/fuzzy_octo_guacamole@v3.0.0/patterns.ts";
 
 export interface BackTrackArgs {
     orderFiles: string[];
@@ -94,8 +95,15 @@ export async function backtrackCommand(args: BackTrackArgs) {
 
     for (const order of orders) {
         try {
+            let result = null;
+
             if (args.downloadBinanceData) {
-                const result = await backtrackWithBinanceUntilTradeCloseOrCurrentDate(args, order, cornixConfig);
+                result = await backtrackWithBinanceUntilTradeCloseOrCurrentDate(args, order, cornixConfig);
+            } else {
+                result = await backTrackSingleOrder(args, order, cornixConfig);
+            }
+
+            if (result != null) {
                 ordersWithResults.push({
                     order,
                     info: result.state.info,
@@ -107,9 +115,8 @@ export async function backtrackCommand(args: BackTrackArgs) {
                     }),
                     tradeData: result.sortedUniqueCrosses.map(x => x.tradeData),
                 });
-            } else {
-                const result = await backTrackSingleOrder(args, order, cornixConfig);
             }
+            
         } catch (error) {
             console.error(error);
         }
@@ -118,7 +125,45 @@ export async function backtrackCommand(args: BackTrackArgs) {
         console.trace(`Progress: ${count} / ${orders.length} = ${(count / orders.length * 100).toFixed(2)}%`);
     }
 
-    await writeJson(`complex-analysis.json`, ordersWithResults, { spaces: 2 });
+    const summary = ordersWithResults.reduce((sum, curr) => {
+        sum.countOrders++;
+
+        const pnlValue = (curr.info.pnl ?? 0);
+        const pnl = isNaN(pnlValue) ? 0 : pnlValue;
+
+        sum.totalPnl += pnl;
+        sum.positivePnl += curr.info.isProfitable ? pnl : 0;
+        sum.negativePnl += curr.info.isProfitable ? 0 : pnl; 
+
+        sum.countProfitable += curr.info.isProfitable ? 1 : 0;
+        sum.countSL += (curr.info.hitSl && !curr.info.isProfitable) ? 1 : 0;
+        sum.totalReachedTps += curr.info.reachedTps;
+
+        sum.averageReachedTps = sum.totalReachedTps / sum.countOrders;
+        sum.averagePnl = sum.totalPnl / sum.countOrders;
+
+        sum.pctSl = sum.countSL / sum.countOrders;
+
+        return sum;
+    }, {
+        countOrders: 0,
+        countProfitable: 0,
+        countSL: 0,
+        countFullTp: 0,
+        totalPnl: 0,
+        averagePnl: 0,
+        positivePnl: 0,
+        negativePnl: 0,
+        totalReachedTps: 0,
+        averageReachedTps: 0,
+        pctSl: 0,
+    });
+
+    console.log(JSON.stringify(summary));
+
+    if (args.detailedLog) {
+        await writeJson(`complex-analysis.json`, ordersWithResults, {spaces: 2});
+    }
 }
 
 async function backTrackSingleOrder(args: BackTrackArgs, order: Order, cornixConfig: CornixConfiguration) {
@@ -145,6 +190,20 @@ async function backTrackSingleOrder(args: BackTrackArgs, order: Order, cornixCon
 
   console.log(`Results for coin ${order.coin}: `);
   console.log(JSON.stringify(results));
+
+    const crosses = events.filter(x => x.type === 'cross');
+    const uniqueCrosses = {};
+
+    crosses.forEach(cross => {
+        const key = `${cross.subtype}-${cross.id ?? 0}-${cross.direction}`;
+        if (!Object.hasOwn(uniqueCrosses, key)) {
+            uniqueCrosses[key] = cross;
+        }
+    });
+
+    const sortedUniqueCrosses = Object.keys(uniqueCrosses).map(x => uniqueCrosses[x]).toSorted((a, b) => a.timestamp - b.timestamp);
+
+    return { state, events, sortedUniqueCrosses };
 }
 
 async function backtrackWithBinanceUntilTradeCloseOrCurrentDate(args: BackTrackArgs, order: Order, cornixConfig: CornixConfiguration) {
@@ -209,4 +268,6 @@ async function backtrackWithBinanceUntilTradeCloseOrCurrentDate(args: BackTrackA
 
     return { state, events, sortedUniqueCrosses };
   }
+
+  return { state, events, sortedUniqueCrosses: [] };
 }

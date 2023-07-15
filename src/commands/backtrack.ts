@@ -10,6 +10,7 @@ export interface BackTrackArgs {
     candlesFiles?: string[];
     downloadBinanceData?: boolean;
     debug?: boolean;
+    detailedLog?: boolean;
 }
 
 async function getFileContent<T>(path: string): Promise<T> {
@@ -127,7 +128,7 @@ async function backtrackWithBinanceUntilTradeCloseOrCurrentDate(args: BackTrackA
   }
 
   let currentDate = order.date;
-  let state = getBackTrackEngine(cornixConfig, order);
+  let { state, events } = getBackTrackEngine(cornixConfig, order, { detailedLog: args.detailedLog });
 
   do {
     const currentTradeData = await getTradeData(order.coin, '1m', currentDate);
@@ -136,14 +137,18 @@ async function backtrackWithBinanceUntilTradeCloseOrCurrentDate(args: BackTrackA
       break;
     }
 
-    currentTradeData.forEach(element => {
+    for (let element of currentTradeData) {
       let previousState = state;
 
       do {
         previousState = state;
         state = state.updateState(element);
       } while (state != previousState);
-    });
+
+      if (state.isClosed) {
+        break;
+      }
+    }
 
     if (state.isClosed) {
       break;
@@ -155,4 +160,8 @@ async function backtrackWithBinanceUntilTradeCloseOrCurrentDate(args: BackTrackA
   const results = state.info;
   console.log(`Results for coin ${order.coin}: `);
   console.log(JSON.stringify(results));
+
+  if (args.detailedLog) {
+    events.forEach(event => console.log(JSON.stringify(event)));
+  }
 }

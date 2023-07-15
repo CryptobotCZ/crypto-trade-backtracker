@@ -14,6 +14,10 @@ export interface Order {
   direction?: 'SHORT' | 'LONG';
 }
 
+export interface BackTrackingConfig {
+  detailedLog?: boolean;
+}
+
 export type LogEvent = any & { type: string };
 export type LogFunction = (status: LogEvent) => void;
 
@@ -47,7 +51,7 @@ export function backtrack(config: CornixConfiguration, order: Order, data: Trade
   return { events: logger.events, results: state.info, state };
 }
 
-export function getBackTrackEngine(config: CornixConfiguration, order: Order) {
+export function getBackTrackEngine(config: CornixConfiguration, order: Order, backtrackConfig?: BackTrackingConfig) {
   const logger = {
     events: [] as LogEvent[],
     log: function(event: LogEvent) {
@@ -58,8 +62,8 @@ export function getBackTrackEngine(config: CornixConfiguration, order: Order) {
     }
   };
 
-  let state: AbstractState = new InitialState(order, config, logger);
-  return state;
+  let state: AbstractState = new InitialState(order, config, logger, backtrackConfig);
+  return { state, results: state.info, events: logger.events };
 }
 
 export function sumPct(targets: PriceTargetWithPrice[]): number {
@@ -120,9 +124,14 @@ type InternalState = {
   currentSl: number|null;
 
   logger: Logger;
+
+  backTrackConfig?: BackTrackingConfig;
 };
 
 abstract class AbstractState {
+  currentPrice: TradeData|null = null;
+  previousPrice: TradeData|null = null;
+
   get allocatedAmount() {
     return this.state.allocatedAmount;
   }
@@ -179,6 +188,10 @@ abstract class AbstractState {
     return this.state.takeProfits.reduce((sum, tp) => tp.total + sum, 0) + (this.state.sl?.total ?? 0);
   }
 
+  get remainingCoinsCurrentValue() {
+    return this.remainingCoins * (this.currentPrice?.open ?? 0);
+  }
+
   get leverage() {
     return this.state.order.leverage ?? 1;
   }
@@ -189,18 +202,28 @@ abstract class AbstractState {
   }
 
   get profit() {
+    const saleValueWithCurrentValue = this.saleValue + this.remainingCoinsCurrentValue;
+
     return this.state.order.direction === 'LONG'
-      ? this.saleValue - this.spentAmountWithLev
-      : this.spentAmountWithLev - this.saleValue;
+      ? saleValueWithCurrentValue - this.spentAmountWithLev
+      : this.spentAmountWithLev - saleValueWithCurrentValue;
   }
 
   constructor(public readonly state: InternalState) {}
 
   updateState(tradeData: TradeData): AbstractState {
+    this.previousPrice = this.currentPrice;
+    this.currentPrice = tradeData
+
     const tradeOpenTime = this.state.tradeOpenTime.getTime()
     if (tradeData.openTime < tradeOpenTime || this.isClosed) {
-      this.state.logger.verbose({ type: 'info', text: 'Incorrect time', orderTime: tradeOpenTime, candleTime: tradeData.openTime });
+      const text = tradeData.openTime < tradeOpenTime ? 'Time before trade open' : 'Trade is closed';
+      this.state.logger.verbose({ type: 'info', text, orderTime: tradeOpenTime, candleTime: tradeData.openTime });
       return this;
+    }
+
+    if (this.state.backTrackConfig?.detailedLog) {
+      this.logPriceIfNeeded(tradeData)
     }
 
     if (this.matchesEntryPrice(tradeData)) {
@@ -212,6 +235,38 @@ abstract class AbstractState {
     }
 
     return this;
+  }
+
+  crossedPrice(tradeData: TradeData, referencePrice: number, direction: 'above'|'below' = 'above') {
+    if (direction === 'above') {
+      // price dropped
+      return tradeData.low <= referencePrice && tradeData.open > referencePrice;
+    } else {
+      // price increased
+      return tradeData.high >= referencePrice && tradeData.open < referencePrice;
+    }
+  }
+
+  logPriceIfNeeded(tradeData: TradeData) {
+    if (this.isOpen) {
+      const entries = this.state.order.entries;
+      entries.forEach((entry, index) => {
+          if (this.crossedPrice(tradeData, entry, 'above') || this.crossedPrice(tradeData, entry, 'below')) {
+            this.state.logger.log({ type: 'cross', subtype: 'entry', id: index + 1, price: entry, timestamp: tradeData.openTime });
+          }
+      });
+
+      if (this.crossedPrice(tradeData, this.averageEntryPrice, 'above') || this.crossedPrice(tradeData, this.averageEntryPrice, 'below')) {
+        this.state.logger.log({ type: 'cross', subtype: 'averageEntry', price: this.averageEntryPrice, timestamp: tradeData.openTime });
+      }
+
+      const tps = this.state.order.tps;
+      tps.forEach((tp, index) => {
+        if (this.crossedPrice(tradeData, tp, 'above') || this.crossedPrice(tradeData, tp, 'below')) {
+          this.state.logger.log({ type: 'cross', subtype: 'tp', id: index + 1, price: tp, timestamp: tradeData.openTime });
+        }
+      });
+    }
   }
 
   hitEntryPoint(tradeData: TradeData): AbstractState {
@@ -325,7 +380,7 @@ class InitialState extends AbstractState {
     return 'entry';
   }
 
-  constructor(public readonly order: Order, public readonly config: CornixConfiguration, logger?: Logger) {
+  constructor(public readonly order: Order, public readonly config: CornixConfiguration, logger?: Logger, backTrackConfig?: BackTrackingConfig) {
     const remainingEntries = mapPriceTargets(order.entries, config.entries);
     const remainingTps = mapPriceTargets(order.tps, config.tps);
 
@@ -342,13 +397,17 @@ class InitialState extends AbstractState {
 
     logger = logger ?? { log: () => {}, verbose: () => {} };
 
+    const cornixConfig: CornixConfiguration = backTrackConfig?.detailedLog
+      ? { ...config, trailingStop: { type: 'without' } }
+      : config;
+
     const state: InternalState = {
       allocatedAmount: order.amount ?? config.amount,
       tradeOpenTime: order.date, // new Date(order.timestamp),
       remainingEntries,
       remainingTps,
       order: { ...order, direction },
-      config: config,
+      config: cornixConfig,
       tradeCloseTime: null,
       entries: [],
       closePrices: [],
@@ -357,6 +416,7 @@ class InitialState extends AbstractState {
       takeProfits: [],
       sl: null,
       logger,
+      backTrackConfig
     };
 
     super(state);
@@ -376,6 +436,14 @@ class EntryPointReachedState extends AbstractState {
   trailingActive = false;
   highestReachedTp: PriceTargetWithPrice|null = null;
 
+  matchesTakeProfitPrice(tradeData: TradeData) {
+    if (!this.trailingActive) {
+      return super.matchesTakeProfitPrice(tradeData);
+    }
+
+    return true;
+  }
+
   hitTp(tradeData: TradeData): AbstractState {
     const price = this.getPriceForTp(tradeData);
     const priceToStopTtp = this.getPriceForTrailingTp(tradeData);
@@ -386,18 +454,19 @@ class EntryPointReachedState extends AbstractState {
       this.trailingActive = true;
       this.currentTrailingReferencePrice = price;
       this.currentTrailingStopPrice = price * (1 - this.getEffectiveTrailingPct());
+      this.highestReachedTp = this.state.remainingTps[0];
 
       this.state.logger.log({ type: 'trailing activated', price, timestamp: tradeData.openTime });
 
       return this;
-    } else if (price < this.currentTrailingStopPrice) {
+    } else if (priceToStopTtp < this.currentTrailingStopPrice) {
       return this.hitTpWithTrailing(tradeData, this.currentTrailingStopPrice);
     } else if (price > this.currentTrailingReferencePrice) {
       this.currentTrailingReferencePrice = price;
       this.currentTrailingStopPrice = price * (1 - this.getEffectiveTrailingPct());
       this.highestReachedTp = this.state.remainingTps.toReversed().find(x => x.price < price) ?? null;
 
-      this.state.logger.log({ type: 'trailing price updated', price, timestamp: tradeData.openTime });
+      this.state.logger.log({ type: 'trailing price updated', price, trailingStopPrice: this.currentTrailingStopPrice, timestamp: tradeData.openTime });
     }
 
     return this;

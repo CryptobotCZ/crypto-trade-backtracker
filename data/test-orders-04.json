@@ -1,0 +1,12 @@
+[
+    {
+      "coin": "BTCUSDT",
+      "direction": "LONG",
+      "date": "2023-07-15T06:13:00.000Z",
+      "leverage": 10,
+      "exchange": "Binance",
+      "entries": [ 30285 ],
+      "tps": [ 30313, 30335, 30360, 30372 ],
+      "sl": 30237
+    }
+  ]

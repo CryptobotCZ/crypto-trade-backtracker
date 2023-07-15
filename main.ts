@@ -45,6 +45,13 @@ const addDebugParam = (yargs: any) => {
   });
 };
 
+const addDetailedLog = (yargs: any) => {
+  yargs.option('detailedLog', {
+    describe: 'Detailed log - run backtracing util full TP or SL',
+    type: 'boolean',
+    default: false,
+  });
+};
 
 yargs(Deno.args)
   .command('backtrack <orderFiles...>', 'Backtrack trades from input .json files', (yargs: any) => {
@@ -54,6 +61,7 @@ yargs(Deno.args)
     addCandlesFiles(yargs);
     addDownloadBinanceData(yargs);
     addDebugParam(yargs);
+    addDetailedLog(yargs);
   }, async (argv: Arguments) => {
     await backtrackCommand(argv as any);
   })

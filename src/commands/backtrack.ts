@@ -9,6 +9,7 @@ import {
     transformArrayToObject
 } from '../binance-api.ts';
 import { CornixConfiguration } from '../cornix.ts';
+import {writeJson} from "https://deno.land/x/jsonfile@1.0.0/write_json.ts";
 
 export interface BackTrackArgs {
     orderFiles: string[];
@@ -88,17 +89,36 @@ export async function backtrackCommand(args: BackTrackArgs) {
       return { ...x, date: x.date != null ? new Date(x.date) : new Date(Date.now()) };
     });
 
+    let count = 0;
+    const ordersWithResults = [];
+
     for (const order of orders) {
         try {
             if (args.downloadBinanceData) {
-                await backtrackWithBinanceUntilTradeCloseOrCurrentDate(args, order, cornixConfig);
+                const result = await backtrackWithBinanceUntilTradeCloseOrCurrentDate(args, order, cornixConfig);
+                ordersWithResults.push({
+                    order,
+                    info: result.state.info,
+                    sortedUniqueCrosses: result.sortedUniqueCrosses.map(x => {
+                        const cloneOfX = { ... x };
+                        delete cloneOfX.tradeData;
+
+                        return cloneOfX;
+                    }),
+                    tradeData: result.sortedUniqueCrosses.map(x => x.tradeData),
+                });
             } else {
-                await backTrackSingleOrder(args, order, cornixConfig);
+                const result = await backTrackSingleOrder(args, order, cornixConfig);
             }
         } catch (error) {
             console.error(error);
         }
+
+        count++;
+        console.trace(`Progress: ${count} / ${orders.length} = ${(count / orders.length * 100).toFixed(2)}%`);
     }
+
+    await writeJson(`complex-analysis.json`, ordersWithResults, { spaces: 2 });
 }
 
 async function backTrackSingleOrder(args: BackTrackArgs, order: Order, cornixConfig: CornixConfiguration) {
@@ -137,6 +157,8 @@ async function backtrackWithBinanceUntilTradeCloseOrCurrentDate(args: BackTrackA
   let currentDate = new Date(order.date.setUTCHours(0, 0, 0, 0));
   let { state, events } = getBackTrackEngine(cornixConfig, order, { detailedLog: args.detailedLog });
 
+  performance.mark('backtrack_start');
+
   do {
     const currentTradeData = await getTradeDataWithCache(order.coin, '1m', currentDate);
 
@@ -164,6 +186,10 @@ async function backtrackWithBinanceUntilTradeCloseOrCurrentDate(args: BackTrackA
     currentDate = new Date(currentTradeData.at(-1)?.closeTime!);
   } while(true);
 
+  performance.mark('backtrack_end');
+  const time = performance.measure('backtracking', 'backtrack_start', 'backtrack_end');
+  console.trace(`It took ${time.duration}ms`);
+
   const results = state.info;
   console.log(`Results for coin ${order.coin}: `);
   console.log(JSON.stringify(results));
@@ -181,6 +207,6 @@ async function backtrackWithBinanceUntilTradeCloseOrCurrentDate(args: BackTrackA
 
     const sortedUniqueCrosses = Object.keys(uniqueCrosses).map(x => uniqueCrosses[x]).toSorted((a, b) => a.timestamp - b.timestamp);
 
-    console.log(JSON.stringify(sortedUniqueCrosses));
+    return { state, events, sortedUniqueCrosses };
   }
 }

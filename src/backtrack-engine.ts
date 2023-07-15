@@ -245,7 +245,7 @@ abstract class AbstractState {
   }
 
   logPriceIfNeeded(tradeData: TradeData) {
-    if (this.isOpen) {
+    if (this.isOpen || this.matchesEntryPrice(tradeData)) {
       const entries = this.state.order.entries;
       entries.forEach((entry, index) => {
         ['up', 'down'].forEach(direction => {

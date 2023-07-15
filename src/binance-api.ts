@@ -73,13 +73,17 @@ export async function loadDataFromCache(pair: string, interval: string, startTim
 }
 
 export async function getTradeDataWithCache(pair: string, interval: string, startTime?: Date) {
+    if (pair === "SHIBUSDT") { 
+        return [];
+    }
+
     pair = pair.replace("/", "");
 
     const startDate = startTime ?? new Date();
     const dataFromCache = await loadDataFromCache(pair, interval, startDate);
 
     if (dataFromCache != null) {
-        return dataFromCache;
+        return dataFromCache.length < 1441 ? [] : dataFromCache;
     }
 
     const dayStart = startDate.setUTCHours(0, 0, 0, 0);

@@ -1,7 +1,13 @@
 import * as fs from "https://deno.land/std@0.192.0/fs/mod.ts";
 
 import { backtrack, getBackTrackEngine, Order } from '../backtrack-engine.ts';
-import {  BinanceItemArray, getTradeData, TradeData, transformArrayToObject } from '../binance-api.ts';
+import {
+    BinanceItemArray,
+    getTradeData,
+    getTradeDataWithCache,
+    TradeData,
+    transformArrayToObject
+} from '../binance-api.ts';
 import { CornixConfiguration } from '../cornix.ts';
 
 export interface BackTrackArgs {
@@ -82,17 +88,17 @@ export async function backtrackCommand(args: BackTrackArgs) {
       return { ...x, date: x.date != null ? new Date(x.date) : new Date(Date.now()) };
     });
 
-    orders.forEach(async order => {
-      try {
-        if (args.downloadBinanceData) {
-          await backtrackWithBinanceUntilTradeCloseOrCurrentDate(args, order, cornixConfig);
-        } else {
-          await backTrackSingleOrder(args, order, cornixConfig);
+    for (const order of orders) {
+        try {
+            if (args.downloadBinanceData) {
+                await backtrackWithBinanceUntilTradeCloseOrCurrentDate(args, order, cornixConfig);
+            } else {
+                await backTrackSingleOrder(args, order, cornixConfig);
+            }
+        } catch (error) {
+            console.error(error);
         }
-      } catch (error) {
-        console.error(error);
-      }
-    });
+    }
 }
 
 async function backTrackSingleOrder(args: BackTrackArgs, order: Order, cornixConfig: CornixConfiguration) {
@@ -101,8 +107,8 @@ async function backTrackSingleOrder(args: BackTrackArgs, order: Order, cornixCon
   if (args.candlesFiles) {
     const binanceRawData = await readInputFilesFromJson<BinanceItemArray>(args.candlesFiles!);
     tradeData = binanceRawData.map(x => transformArrayToObject(x));
-  } else if((args.downloadBinanceData ?? true)) {
-    tradeData = await getTradeData(order.coin, '1m', order.date);
+  } else if ((args.downloadBinanceData ?? true)) {
+    tradeData = await getTradeDataWithCache(order.coin, '1m', order.date);
   } else {
     throw new Error('Either specify --candlesFiles or use --downloadBinanceData');
   }
@@ -127,11 +133,12 @@ async function backtrackWithBinanceUntilTradeCloseOrCurrentDate(args: BackTrackA
     console.log(JSON.stringify(order));
   }
 
-  let currentDate = order.date;
+  // always get full day data
+  let currentDate = new Date(order.date.setUTCHours(0, 0, 0, 0));
   let { state, events } = getBackTrackEngine(cornixConfig, order, { detailedLog: args.detailedLog });
 
   do {
-    const currentTradeData = await getTradeData(order.coin, '1m', currentDate);
+    const currentTradeData = await getTradeDataWithCache(order.coin, '1m', currentDate);
 
     if (currentTradeData.length === 0) {
       break;
@@ -162,6 +169,16 @@ async function backtrackWithBinanceUntilTradeCloseOrCurrentDate(args: BackTrackA
   console.log(JSON.stringify(results));
 
   if (args.detailedLog) {
-    events.forEach(event => console.log(JSON.stringify(event)));
+    const crosses = events.filter(x => x.type === 'cross');
+    const uniqueCrosses = {};
+    
+    crosses.forEach(cross => {
+        const key = `${cross.subtype}-${cross.id ?? 0}-${cross.direction}`;
+        if (!Object.hasOwn(uniqueCrosses, key)) {
+            uniqueCrosses[key] = cross;
+        }
+    });
+
+    console.log(JSON.stringify(uniqueCrosses));
   }
 }

@@ -1,3 +1,7 @@
+import * as fs from "https://deno.land/std@0.192.0/fs/mod.ts";
+import { writeJson } from 'https://deno.land/x/jsonfile/mod.ts';
+import { sleep } from "https://deno.land/x/sleep/mod.ts";
+
 export interface TradeData {
     openTime: number;
     open: number;
@@ -50,7 +54,55 @@ enum TimeInterval {
     months1 = "1M"
 }
 
-export async function getTradeData(pair: string, interval: string, startTime?: Date|number) {
+export async function loadDataFromCache(pair: string, interval: string, startTime: Date) {
+    const dayStart = startTime.setUTCHours(0, 0, 0, 0);
+    const fileName = `${pair}_${interval}_${dayStart}.json`;
+    const fullPath = `./cache/${fileName}`;
+
+    const isReadableFile = await fs.exists(fullPath, {
+        isReadable: true,
+        isFile: true
+    });
+
+    if (!isReadableFile) {
+        return null;
+    }
+
+    const data = await Deno.readTextFile(fullPath);
+    return JSON.parse(data) as TradeData[];
+}
+
+export async function getTradeDataWithCache(pair: string, interval: string, startTime?: Date) {
+    pair = pair.replace("/", "");
+
+    const startDate = startTime ?? new Date();
+    const dataFromCache = await loadDataFromCache(pair, interval, startDate);
+
+    if (dataFromCache != null) {
+        return dataFromCache;
+    }
+
+    const dayStart = startDate.setUTCHours(0, 0, 0, 0);
+    const tradeData = await getTradeData(pair, interval, startTime);
+
+    if (tradeData.length < 1441) {
+        return [];
+    }
+
+    const fileName = `${pair}_${interval}_${dayStart}.json`;
+    await writeJson(`./cache/${fileName}`, tradeData, { spaces: 2 });
+
+    return tradeData;
+}
+
+export async function getTradeData(pair: string, interval: string, startTime?: Date|number, limit = 1441) {
+    const time = performance.measure('request');
+    
+    if (time?.duration < 5000) {
+        console.log('Sleeping to prevent flooding the binance API');
+        await sleep(5);
+    }
+
     const url = 'https://fapi.binance.com/fapi/v1/klines';
 
     const resultStartTime = typeof startTime === 'number'
@@ -64,10 +116,16 @@ export async function getTradeData(pair: string, interval: string, startTime?: D
         'symbol': pair,
         'contractType': 'PERPETUAL',
         'interval': interval,
-        ...(objWithTime)
+        ...(objWithTime),
+        'limit': limit,
     });
 
     const response = await fetch(urlWithParams);
+
+    if (response.status === 429) {
+        console.log('Flooding binance, have to sleep for a while');
+        sleep(60 * 5);
+    }
 
     if (response.status !== 200) {
         throw new Error(`Invalid status ${response.status} for coin ${pair}`);

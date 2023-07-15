@@ -118,9 +118,6 @@ type InternalState = {
   takeProfits: DetailedEntry[];
   sl: DetailedEntry | null;
 
-  closePrices: number[];
-  profits: number[];
-
   currentSl: number|null;
 
   logger: Logger;
@@ -237,8 +234,8 @@ abstract class AbstractState {
     return this;
   }
 
-  crossedPrice(tradeData: TradeData, referencePrice: number, direction: 'above'|'below' = 'above') {
-    if (direction === 'above') {
+  crossedPrice(tradeData: TradeData, referencePrice: number, direction: 'down'|'up') {
+    if (direction === 'down') {
       // price dropped
       return tradeData.low <= referencePrice && tradeData.open > referencePrice;
     } else {
@@ -251,20 +248,26 @@ abstract class AbstractState {
     if (this.isOpen) {
       const entries = this.state.order.entries;
       entries.forEach((entry, index) => {
-          if (this.crossedPrice(tradeData, entry, 'above') || this.crossedPrice(tradeData, entry, 'below')) {
-            this.state.logger.log({ type: 'cross', subtype: 'entry', id: index + 1, price: entry, timestamp: tradeData.openTime });
+        ['up', 'down'].forEach(direction => {
+          if (this.crossedPrice(tradeData, entry, direction)) {
+            this.state.logger.log({ type: 'cross', direction, subtype: 'entry', id: index + 1, price: entry, timestamp: tradeData.openTime });
           }
+        });
       });
 
-      if (this.crossedPrice(tradeData, this.averageEntryPrice, 'above') || this.crossedPrice(tradeData, this.averageEntryPrice, 'below')) {
-        this.state.logger.log({ type: 'cross', subtype: 'averageEntry', price: this.averageEntryPrice, timestamp: tradeData.openTime });
-      }
+      ['up', 'down'].forEach(direction => {
+        if (this.crossedPrice(tradeData, this.averageEntryPrice, direction)) {
+          this.state.logger.log({ type: 'cross', direction, subtype: 'averageEntry', price: this.averageEntryPrice, timestamp: tradeData.openTime });
+        }
+      });
 
       const tps = this.state.order.tps;
       tps.forEach((tp, index) => {
-        if (this.crossedPrice(tradeData, tp, 'above') || this.crossedPrice(tradeData, tp, 'below')) {
-          this.state.logger.log({ type: 'cross', subtype: 'tp', id: index + 1, price: tp, timestamp: tradeData.openTime });
-        }
+        ['up', 'down'].forEach(direction => {
+          if (this.crossedPrice(tradeData, this.averageEntryPrice, direction)) {
+            this.state.logger.log({ type: 'cross', direction, subtype: 'tp', id: index + 1, price: tp, timestamp: tradeData.openTime });
+          }
+        });
       });
     }
   }
@@ -410,8 +413,6 @@ class InitialState extends AbstractState {
       config: cornixConfig,
       tradeCloseTime: null,
       entries: [],
-      closePrices: [],
-      profits: [],
       currentSl: order.sl,
       takeProfits: [],
       sl: null,

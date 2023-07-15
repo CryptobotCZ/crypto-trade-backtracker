@@ -447,7 +447,6 @@ class EntryPointReachedState extends AbstractState {
 
   hitTp(tradeData: TradeData): AbstractState {
     const price = this.getPriceForTp(tradeData);
-    const priceToStopTtp = this.getPriceForTrailingTp(tradeData);
 
     if (this.state.config.trailingTakeProfit === 'without') {
       return this.hitTpWithoutTrailing(tradeData);
@@ -460,17 +459,39 @@ class EntryPointReachedState extends AbstractState {
       this.state.logger.log({ type: 'trailing activated', price, timestamp: tradeData.openTime });
 
       return this;
-    } else if (priceToStopTtp < this.currentTrailingStopPrice) {
+    } else if (this.shouldTrailingStop(tradeData)) {
       return this.hitTpWithTrailing(tradeData, this.currentTrailingStopPrice);
-    } else if (price > this.currentTrailingReferencePrice) {
+    } else if (this.shouldTrailingUpdatePrice(tradeData)) {
       this.currentTrailingReferencePrice = price;
-      this.currentTrailingStopPrice = price * (1 - this.getEffectiveTrailingPct());
+      this.currentTrailingStopPrice = this.getNewTrailingStopPrice(price);
       this.highestReachedTp = this.state.remainingTps.toReversed().find(x => x.price < price) ?? null;
 
       this.state.logger.log({ type: 'trailing price updated', price, trailingStopPrice: this.currentTrailingStopPrice, timestamp: tradeData.openTime });
     }
 
     return this;
+  }
+
+  getNewTrailingStopPrice(price: number) {
+    const sign = this.state.order.direction === 'LONG' ? -1 : -1;
+    return price * (1 + sign * this.getEffectiveTrailingPct());
+  }
+
+  shouldTrailingStop(tradeData: TradeData) {
+    const priceToStopTtp = this.getPriceForTrailingTp(tradeData);
+
+    return this.state.order.direction === 'LONG'
+        ? priceToStopTtp <= this.currentTrailingStopPrice
+        : priceToStopTtp >= this.currentTrailingStopPrice;
+  }
+
+  shouldTrailingUpdatePrice(tradeData: TradeData) {
+    const price = this.getPriceForTp(tradeData);
+    return price > this.currentTrailingReferencePrice;
+
+    return this.state.order.direction === 'LONG'
+        ? price > this.currentTrailingReferencePrice
+        : price < this.currentTrailingReferencePrice;
   }
 
   hitTpWithTrailing(tradeData: TradeData, trailingStopPrice: number): AbstractState {

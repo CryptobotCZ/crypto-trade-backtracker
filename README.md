@@ -16,5 +16,15 @@ Optimally use it with [crypto-signals-analysis](../crypto-signals-analysis)
 4. First run to get the interesting points
  `deno run --allow-all main.ts backtrack --downloadBinanceData --debug --detailedLog --fromDate 1685577600000 --toDate 1688169600000 --outputPath backtrack-intermediate-result.json exported-orders.json`
 5. Second run to get the final report
- `backtrack --debug --fromDetailedLog --fromDate 1688169600000 --outputPath final-report.csv --delimiter ";" backtrack-intermediate-result.json`
+ `deno run --allow-all main.ts backtrack --debug --fromDetailedLog --fromDate 1688169600000 --outputPath final-report.csv --delimiter ";" backtrack-intermediate-result.json`
  (final report can be obtained also from the first run, but workflow with 2 runs is better for finding the right strategy)
+
+## Sample files
+
+- Just show the values: `deno run --allow-all main.ts backtrack --downloadBinanceData data/test-order-eth.json`
+- Show the values and collect detailed log data: `deno run --allow-all main.ts backtrack --detailedLog --downloadBinanceData --outputPath backtrack-intermediate-result-eth.json data/test-order-eth.json`
+- Get the csv report:  `deno run --allow-all main.ts backtrack --fromDetailedLog  --outputPath final-report-eth.csv --delimiter ";" backtrack-intermediate-result-eth.json`
+
+## Known bugs
+
+- There is a bug in parsing data from `--fromDetailedLog` when trailing is activated. It doesn't give expected values.

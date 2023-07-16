@@ -1,0 +1,6 @@
+data
+cache
+*.log
+*.csv
+*.json
+*.txt

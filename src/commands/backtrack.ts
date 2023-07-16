@@ -215,8 +215,9 @@ export async function backtrackCommand(args: BackTrackArgs) {
         const crosses = result?.events?.filter((x) => x.type === "cross") ?? [];
         const uniqueCrosses: { [key: string]: any } = {};
 
-        crosses.forEach((cross) => {
-          const key = `${cross.subtype}-${cross.id ?? 0}-${cross.direction}`;
+        crosses.forEach((cross, idx) => {
+          const crossType = cross.subtype.indexOf('trailing') === -1 ? cross.subtype : `${cross.subtype}-${idx}`;
+          const key = `${crossType}-${cross.id ?? 0}-${cross.direction}`;
           if (!Object.hasOwn(uniqueCrosses, key)) {
             uniqueCrosses[key] = cross;
           }

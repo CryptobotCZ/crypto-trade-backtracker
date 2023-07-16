@@ -287,67 +287,46 @@ export abstract class AbstractState {
     }
   }
 
+  logIfMatchesImportantPrice(tradeData, importantPrice, logProperties) {
+    (["up", "down"] as UpOrDown[]).forEach((direction) => {
+      if (this.crossedPrice(tradeData, importantPrice, direction)) {
+        this.state.logger.log({
+          type: "cross",
+          direction,
+          ...logProperties,
+          price: importantPrice,
+          timestamp: tradeData.openTime,
+          tradeData,
+        });
+      }
+    });
+  }
+
   logPriceIfNeeded(tradeData: TradeData) {
     if (this.isOpen || this.matchesEntryPrice(tradeData)) {
       const entries = this.state.order.entries;
       entries.forEach((entry, index) => {
-        (["up", "down"] as UpOrDown[]).forEach((direction) => {
-          if (this.crossedPrice(tradeData, entry, direction)) {
-            this.state.logger.log({
-              type: "cross",
-              direction,
-              subtype: "entry",
-              id: index + 1,
-              price: entry,
-              timestamp: tradeData.openTime,
-              tradeData,
-            });
-          }
+        this.logIfMatchesImportantPrice(tradeData, entry, {
+          subtype: "entry",
+          id: index + 1,
         });
       });
 
-      (["up", "down"] as UpOrDown[]).forEach((direction) => {
-        if (this.crossedPrice(tradeData, this.averageEntryPrice, direction)) {
-          this.state.logger.log({
-            type: "cross",
-            direction,
-            subtype: "averageEntry",
-            price: this.averageEntryPrice,
-            timestamp: tradeData.openTime,
-            tradeData,
-          });
-        }
+      this.logIfMatchesImportantPrice(tradeData, this.averageEntryPrice, {
+        subtype: "averageEntry",
       });
 
       const tps = this.state.order.tps;
       tps.forEach((tp, index) => {
-        (["up", "down"] as UpOrDown[]).forEach((direction) => {
-          if (this.crossedPrice(tradeData, tp, direction)) {
-            this.state.logger.log({
-              type: "cross",
-              direction,
-              subtype: "tp",
-              id: index + 1,
-              price: tp,
-              timestamp: tradeData.openTime,
-              tradeData,
-            });
-          }
+        this.logIfMatchesImportantPrice(tradeData, this.averageEntryPrice, {
+          subtype: "tp",
+          id: index + 1,
         });
       });
 
       if (this.state.order.sl) {
-        (["up", "down"] as UpOrDown[]).forEach((direction) => {
-          if (this.crossedPrice(tradeData, this.state.order.sl, direction)) {
-            this.state.logger.log({
-              type: "cross",
-              direction,
-              subtype: "sl",
-              price: this.state.order.sl,
-              timestamp: tradeData.openTime,
-              tradeData,
-            });
-          }
+        this.logIfMatchesImportantPrice(tradeData, this.state.order.sl, {
+          subtype: "sl"
         });
       }
     }
@@ -688,6 +667,24 @@ class EntryPointReachedState extends AbstractState {
 
   hitSl(tradeData: TradeData): AbstractState {
     return new StopLossReachedState(this, tradeData);
+  }
+
+  logPriceIfNeeded(tradeData: TradeData) {
+    super.logPriceIfNeeded(tradeData);
+
+    if (!this.trailingActive) {
+      return;
+    }
+
+    if (this.shouldTrailingUpdatePrice(tradeData)) {
+      this.logIfMatchesImportantPrice(tradeData, this.currentTrailingReferencePrice, {
+        subtype: "trailingUpdate"
+      });
+    } else if (this.shouldTrailingStop(tradeData)) {
+      this.logIfMatchesImportantPrice(tradeData, this.currentTrailingStopPrice, {
+        subtype: "trailingStop"
+      });
+    }
   }
 }
 

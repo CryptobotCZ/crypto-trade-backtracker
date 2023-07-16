@@ -53,6 +53,14 @@ const addDetailedLog = (yargs: any) => {
   });
 };
 
+const addFromDetailedLog = (yargs: any) => {
+  yargs.option('fromDetailedLog', {
+    describe: 'Backtrack from detailed log file',
+    type: 'boolean',
+    default: false,
+  });
+};
+
 yargs(Deno.args)
   .command('backtrack <orderFiles...>', 'Backtrack trades from input .json files', (yargs: any) => {
     addOutputPathArg(yargs);
@@ -62,6 +70,7 @@ yargs(Deno.args)
     addDownloadBinanceData(yargs);
     addDebugParam(yargs);
     addDetailedLog(yargs);
+    addFromDetailedLog(yargs);
   }, async (argv: Arguments) => {
     await backtrackCommand(argv as any);
   })

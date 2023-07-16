@@ -10,7 +10,13 @@ import {
 } from '../binance-api.ts';
 import { CornixConfiguration } from '../cornix.ts';
 import {writeJson} from "https://deno.land/x/jsonfile@1.0.0/write_json.ts";
-import {number} from "https://deno.land/x/fuzzy_octo_guacamole@v3.0.0/patterns.ts";
+
+export interface PreBacktrackedData {
+    order: Order;
+    info: any;
+    sortedUniqueCrosses: any[];
+    tradeData: TradeData[];
+}
 
 export interface BackTrackArgs {
     orderFiles: string[];
@@ -19,6 +25,7 @@ export interface BackTrackArgs {
     downloadBinanceData?: boolean;
     debug?: boolean;
     detailedLog?: boolean;
+    fromDetailedLog?: boolean;
 }
 
 async function getFileContent<T>(path: string): Promise<T> {
@@ -86,9 +93,16 @@ export async function backtrackCommand(args: BackTrackArgs) {
         ? await getFileContent<CornixConfiguration>(args.cornixConfigFile)
         : defaultCornixConfig;
 
-    const orders = (await readInputFilesFromJson<Order>(args.orderFiles)).map(x => {
-      return { ...x, date: x.date != null ? new Date(x.date) : new Date(Date.now()) };
+    let rawData = args.fromDetailedLog
+        ? await readInputFilesFromJson<PreBacktrackedData>(args.orderFiles)
+        : (await readInputFilesFromJson<Order>(args.orderFiles)).map(x => ({ order: x, tradeData: null }));
+
+    const orders = rawData.map(x => {
+        const order = x.order;
+        return { ...order, date: order.date != null ? new Date(order.date) : new Date(Date.now()) };
     });
+
+    const tradeData = rawData.flatMap(x => x.tradeData);
 
     let count = 0;
     const ordersWithResults = [];
@@ -100,7 +114,7 @@ export async function backtrackCommand(args: BackTrackArgs) {
             if (args.downloadBinanceData) {
                 result = await backtrackWithBinanceUntilTradeCloseOrCurrentDate(args, order, cornixConfig);
             } else {
-                result = await backTrackSingleOrder(args, order, cornixConfig);
+                result = await backTrackSingleOrder(args, order, cornixConfig, tradeData);
             }
 
             if (result != null) {
@@ -166,16 +180,14 @@ export async function backtrackCommand(args: BackTrackArgs) {
     }
 }
 
-async function backTrackSingleOrder(args: BackTrackArgs, order: Order, cornixConfig: CornixConfiguration) {
-  let tradeData: TradeData[] = [];
-
+async function backTrackSingleOrder(args: BackTrackArgs, order: Order, cornixConfig: CornixConfiguration, tradeData?: TradeData[]) {
   if (args.candlesFiles) {
     const binanceRawData = await readInputFilesFromJson<BinanceItemArray>(args.candlesFiles!);
     tradeData = binanceRawData.map(x => transformArrayToObject(x));
   } else if ((args.downloadBinanceData ?? true)) {
     tradeData = await getTradeDataWithCache(order.coin, '1m', order.date);
-  } else {
-    throw new Error('Either specify --candlesFiles or use --downloadBinanceData');
+  } else if (tradeData == null) {
+    throw new Error('Either specify --candlesFiles or use --downloadBinanceData or use --fromDetailedLog');
   }
 
   if (args.debug) {
@@ -183,7 +195,7 @@ async function backTrackSingleOrder(args: BackTrackArgs, order: Order, cornixCon
     console.log(JSON.stringify(order));
   }
 
-  const { events, results } = await backtrack(cornixConfig, order, tradeData);
+  const { events, results, state } = await backtrack(cornixConfig, order, tradeData);
   if (args.debug) {
     events.forEach(event => console.log(JSON.stringify(event)));
   }

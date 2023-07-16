@@ -26,7 +26,7 @@ export interface Logger {
   verbose: (status: LogEvent) => void;
 }
 
-export function backtrack(config: CornixConfiguration, order: Order, data: TradeData[]) {
+export function backtrack(config: CornixConfiguration, order: Order, tradeData: TradeData[]) {
   const logger = {
     events: [] as LogEvent[],
     log: function(event: LogEvent) {
@@ -39,14 +39,18 @@ export function backtrack(config: CornixConfiguration, order: Order, data: Trade
 
   let state: AbstractState = new InitialState(order, config, logger);
 
-  data.forEach(element => {
+  for (let tradeEntry of tradeData) {
     let previousState = state;
 
     do {
       previousState = state;
-      state = state.updateState(element);
-    } while (state != previousState);
-  });
+      state = state.updateState(tradeEntry);
+    } while (state != previousState && !state.isClosed);
+    
+    if (state.isClosed) {
+      break;
+    }
+  }
 
   return { events: logger.events, results: state.info, state };
 }

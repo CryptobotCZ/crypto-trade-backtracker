@@ -1,6 +1,11 @@
 import * as fs from "https://deno.land/std@0.192.0/fs/mod.ts";
 
-import { backtrack, getBackTrackEngine, Order } from "../backtrack-engine.ts";
+import {
+  AbstractState,
+  backtrack,
+  getBackTrackEngine,
+  Order,
+} from "../backtrack-engine.ts";
 import {
   BinanceItemArray,
   getTradeDataWithCache,
@@ -115,18 +120,21 @@ export async function backtrackCommand(args: BackTrackArgs) {
     };
   });
 
-  const tradesForOrders = (rawData as any[]).reduce((map: Map<Order, PreBacktrackedData>, orderData: PreBacktrackedData) => {
-    return map.set(orderData.order, orderData);
-  }, new Map()) as Map<Order, PreBacktrackedData>;
+  const tradesForOrders = (rawData as any[]).reduce(
+    (map: Map<Order, PreBacktrackedData>, orderData: PreBacktrackedData) => {
+      return map.set(orderData.order, orderData);
+    },
+    new Map(),
+  ) as Map<Order, PreBacktrackedData>;
 
   if (args.fromDate) {
     const from = new Date(parseInt(args.fromDate));
-    orders = orders.filter(x => x.date >= from);
+    orders = orders.filter((x) => x.date >= from);
   }
 
   if (args.toDate) {
     const to = new Date(args.toDate);
-    orders = orders.filter(x => x.date <= to);
+    orders = orders.filter((x) => x.date <= to);
   }
 
   let count = 0;
@@ -134,6 +142,14 @@ export async function backtrackCommand(args: BackTrackArgs) {
 
   for (const order of orders) {
     try {
+      console.log(`Backtracking coin ${order.coin}: `);
+
+      if (args.debug) {
+        console.log(JSON.stringify(order));
+      }
+
+      performance.mark("backtrack_start");
+
       let result = null;
 
       if (args.downloadBinanceData) {
@@ -152,17 +168,47 @@ export async function backtrackCommand(args: BackTrackArgs) {
         );
       }
 
+      performance.mark("backtrack_end");
+      const time = performance.measure(
+        "backtracking",
+        "backtrack_start",
+        "backtrack_end",
+      );
+      console.trace(`It took ${time.duration}ms`);
+
+      const results = result?.state?.info;
+      console.log(`Results for coin ${order.coin}: `);
+      console.log(JSON.stringify(results));
+
+      let sortedUniqueCrosses: any[] = [];
+
+      if (args.detailedLog) {
+        const crosses = result?.events?.filter((x) => x.type === "cross") ?? [];
+        const uniqueCrosses: { [key: string]: any } = {};
+
+        crosses.forEach((cross) => {
+          const key = `${cross.subtype}-${cross.id ?? 0}-${cross.direction}`;
+          if (!Object.hasOwn(uniqueCrosses, key)) {
+            uniqueCrosses[key] = cross;
+          }
+        });
+
+        sortedUniqueCrosses = Object.keys(uniqueCrosses)
+          .map((x) => uniqueCrosses[x])
+          .toSorted((a, b) => a.timestamp - b.timestamp);
+      }
+
       if (result != null) {
         ordersWithResults.push({
           order,
           info: result.state.info,
-          sortedUniqueCrosses: result.sortedUniqueCrosses.map((x) => {
+          sortedUniqueCrosses: sortedUniqueCrosses.map((x) => {
             const cloneOfX = { ...x };
             delete cloneOfX.tradeData;
 
             return cloneOfX;
           }),
-          tradeData: result.sortedUniqueCrosses.map((x) => x.tradeData),
+          tradeData: sortedUniqueCrosses.map((x) => x.tradeData),
         });
       }
     } catch (error) {
@@ -219,12 +265,17 @@ export async function backtrackCommand(args: BackTrackArgs) {
   }
 }
 
+interface BackTrackResult {
+  events: any[];
+  state: AbstractState;
+}
+
 async function backTrackSingleOrder(
   args: BackTrackArgs,
   order: Order,
   cornixConfig: CornixConfiguration,
   tradeData?: TradeData[],
-) {
+): Promise<BackTrackResult> {
   if (args.candlesFiles) {
     const binanceRawData = await readInputFilesFromJson<BinanceItemArray>(
       args.candlesFiles!,
@@ -238,58 +289,25 @@ async function backTrackSingleOrder(
     );
   }
 
-  if (args.debug) {
-    console.log(`Backtracking coin ${order.coin}: `);
-    console.log(JSON.stringify(order));
-  }
-
-  const { events, results, state } = await backtrack(
+  const { events, state } = await backtrack(
     cornixConfig,
     order,
     tradeData,
   );
 
-  if (args.debug) {
-    events.forEach((event) => console.log(JSON.stringify(event)));
-  }
-
-  console.log(`Results for coin ${order.coin}: `);
-  console.log(JSON.stringify(results));
-
-  const crosses = events.filter((x) => x.type === "cross");
-  const uniqueCrosses: {[key: string]: any} = {};
-
-  crosses.forEach((cross) => {
-    const key = `${cross.subtype}-${cross.id ?? 0}-${cross.direction}`;
-    if (!Object.hasOwn(uniqueCrosses, key)) {
-      uniqueCrosses[key] = cross;
-    }
-  });
-
-  const sortedUniqueCrosses = Object.keys(uniqueCrosses).map((x) =>
-    uniqueCrosses[x]
-  ).toSorted((a, b) => a.timestamp - b.timestamp);
-
-  return { state, events, sortedUniqueCrosses };
+  return { state, events };
 }
 
 async function backtrackWithBinanceUntilTradeCloseOrCurrentDate(
   args: BackTrackArgs,
   order: Order,
   cornixConfig: CornixConfiguration,
-) {
-  if (args.debug) {
-    console.log(`Backtracking coin ${order.coin}: `);
-    console.log(JSON.stringify(order));
-  }
-
+): Promise<BackTrackResult> {
   // always get full day data
   let currentDate = new Date(order.date.setUTCHours(0, 0, 0, 0));
   let { state, events } = getBackTrackEngine(cornixConfig, order, {
     detailedLog: args.detailedLog,
   });
-
-  performance.mark("backtrack_start");
 
   do {
     const currentTradeData = await getTradeDataWithCache(
@@ -322,35 +340,5 @@ async function backtrackWithBinanceUntilTradeCloseOrCurrentDate(
     currentDate = new Date(currentTradeData.at(-1)?.closeTime!);
   } while (true);
 
-  performance.mark("backtrack_end");
-  const time = performance.measure(
-    "backtracking",
-    "backtrack_start",
-    "backtrack_end",
-  );
-  console.trace(`It took ${time.duration}ms`);
-
-  const results = state.info;
-  console.log(`Results for coin ${order.coin}: `);
-  console.log(JSON.stringify(results));
-
-  if (args.detailedLog) {
-    const crosses = events.filter((x) => x.type === "cross");
-    const uniqueCrosses = {};
-
-    crosses.forEach((cross) => {
-      const key = `${cross.subtype}-${cross.id ?? 0}-${cross.direction}`;
-      if (!Object.hasOwn(uniqueCrosses, key)) {
-        uniqueCrosses[key] = cross;
-      }
-    });
-
-    const sortedUniqueCrosses = Object.keys(uniqueCrosses).map((x) =>
-      uniqueCrosses[x]
-    ).toSorted((a, b) => a.timestamp - b.timestamp);
-
-    return { state, events, sortedUniqueCrosses };
-  }
-
-  return { state, events, sortedUniqueCrosses: [] };
+  return { state, events };
 }

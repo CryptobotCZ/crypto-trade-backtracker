@@ -34,20 +34,11 @@ export function backtrack(
   config: CornixConfiguration,
   order: Order,
   tradeData: TradeData[],
+  backtrackConfig?: BackTrackingConfig,
 ) {
-  const logger = {
-    events: [] as LogEvent[],
-    log: function (event: LogEvent) {
-      this.events.push(event);
-    },
-    verbose: function (event: LogEvent) {
-      this.log(event);
-    },
-  };
+  let { events, state } = getBackTrackEngine(config, order, backtrackConfig);
 
-  let state: AbstractState = new InitialState(order, config, logger);
-
-  for (let tradeEntry of tradeData) {
+  for (const tradeEntry of tradeData) {
     let previousState = state;
 
     do {
@@ -60,7 +51,7 @@ export function backtrack(
     }
   }
 
-  return { events: logger.events, results: state.info, state };
+  return { events, results: state.info, state };
 }
 
 export function getBackTrackEngine(
@@ -78,12 +69,13 @@ export function getBackTrackEngine(
     },
   };
 
-  let state: AbstractState = new InitialState(
+  const state: AbstractState = new InitialState(
     order,
     config,
     logger,
     backtrackConfig,
   );
+
   return { state, results: state.info, events: logger.events };
 }
 
@@ -146,7 +138,7 @@ type InternalState = {
   backTrackConfig?: BackTrackingConfig;
 };
 
-abstract class AbstractState {
+export abstract class AbstractState {
   currentPrice: TradeData | null = null;
   previousPrice: TradeData | null = null;
 

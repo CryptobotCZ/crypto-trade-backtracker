@@ -69,12 +69,12 @@ const addFromDetailedLog = (yargs: any) => {
 
 const addDateRanges = (yargs: any) => {
     yargs.option("fromDate", {
-        describe: "Backtrack orders opened after fromDate. Unix timestamp format.", // 'yyyy-MM-dd hh:mm:ss' format o
+        describe: "Backtrack orders opened after fromDate. Unix timestamp format in ms.", // 'yyyy-MM-dd hh:mm:ss' format o
         type: "string"
     });
 
     yargs.option("toDate", {
-        describe: "Backtrack orders opened until toDate. Unix timestamp format.",
+        describe: "Backtrack orders opened until toDate. Unix timestamp format in ms.",
         type: "string"
     });
 

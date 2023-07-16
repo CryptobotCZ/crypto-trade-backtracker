@@ -191,6 +191,10 @@ export async function backtrackCommand(args: BackTrackArgs) {
         console.trace(`It took ${time.duration}ms`);
       }
 
+      if (args.debug) {
+        result.events.forEach(event => console.log(JSON.stringify(event)));
+      }
+
       const results = result?.state?.info;
 
       console.log(`Open time: ${results.openTime}`);

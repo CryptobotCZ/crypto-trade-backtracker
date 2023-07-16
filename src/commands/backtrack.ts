@@ -329,7 +329,7 @@ async function backtrackWithBinanceUntilTradeCloseOrCurrentDate(
   cornixConfig: CornixConfiguration,
 ): Promise<BackTrackResult> {
   // always get full day data
-  let currentDate = new Date(order.date.setUTCHours(0, 0, 0, 0));
+  let currentDate = new Date(new Date(order.date.getTime()).setUTCHours(0, 0, 0, 0));
   let { state, events } = getBackTrackEngine(cornixConfig, order, {
     detailedLog: args.detailedLog,
   });

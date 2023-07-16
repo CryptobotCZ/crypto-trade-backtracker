@@ -72,7 +72,7 @@ export async function loadDataFromCache(
   interval: string,
   startTime: Date,
 ) {
-  const dayStart = startTime.setUTCHours(0, 0, 0, 0);
+  const dayStart = new Date(startTime.getTime()).setUTCHours(0, 0, 0, 0);
   const fileName = `${pair}_${interval}_${dayStart}.json`;
   const fullPath = `./cache/${fileName}`;
 
@@ -111,7 +111,7 @@ export async function getTradeDataWithCache(
     return dataFromCache.length < 1441 ? [] : dataFromCache;
   }
 
-  const dayStart = startDate.setUTCHours(0, 0, 0, 0);
+  const dayStart = new Date(startTime.getTime()).setUTCHours(0, 0, 0, 0);
   const tradeData = await getTradeData(pair, interval, startTime);
 
   if (tradeData.length < 1441) {

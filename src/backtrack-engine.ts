@@ -22,6 +22,19 @@ export interface BackTrackingConfig {
   detailedLog?: boolean;
 }
 
+export interface TradeResult {
+  reachedEntries: number;
+  reachedTps: number;
+  openTime: Date;
+  closeTime: Date | null;
+  isClosed: boolean;
+  isProfitable: boolean;
+  pnl: number;
+  profit: number;
+  hitSl: boolean;
+  averageEntryPrice: number;
+}
+
 export type LogEvent = any & { type: string };
 export type LogFunction = (status: LogEvent) => void;
 
@@ -29,6 +42,8 @@ export interface Logger {
   log: (status: LogEvent) => void;
   verbose: (status: LogEvent) => void;
 }
+
+type UpOrDown = "up" | "down";
 
 export function backtrack(
   config: CornixConfiguration,
@@ -260,7 +275,7 @@ export abstract class AbstractState {
   crossedPrice(
     tradeData: TradeData,
     referencePrice: number,
-    direction: "down" | "up",
+    direction: UpOrDown,
   ) {
     if (direction === "down") {
       // price dropped
@@ -276,7 +291,7 @@ export abstract class AbstractState {
     if (this.isOpen || this.matchesEntryPrice(tradeData)) {
       const entries = this.state.order.entries;
       entries.forEach((entry, index) => {
-        ["up", "down"].forEach((direction) => {
+        (["up", "down"] as UpOrDown[]).forEach((direction) => {
           if (this.crossedPrice(tradeData, entry, direction)) {
             this.state.logger.log({
               type: "cross",
@@ -291,7 +306,7 @@ export abstract class AbstractState {
         });
       });
 
-      ["up", "down"].forEach((direction) => {
+      (["up", "down"] as UpOrDown[]).forEach((direction) => {
         if (this.crossedPrice(tradeData, this.averageEntryPrice, direction)) {
           this.state.logger.log({
             type: "cross",
@@ -306,7 +321,7 @@ export abstract class AbstractState {
 
       const tps = this.state.order.tps;
       tps.forEach((tp, index) => {
-        ["up", "down"].forEach((direction) => {
+        (["up", "down"] as UpOrDown[]).forEach((direction) => {
           if (this.crossedPrice(tradeData, tp, direction)) {
             this.state.logger.log({
               type: "cross",
@@ -322,7 +337,7 @@ export abstract class AbstractState {
       });
 
       if (this.state.order.sl) {
-        ["up", "down"].forEach((direction) => {
+        (["up", "down"] as UpOrDown[]).forEach((direction) => {
           if (this.crossedPrice(tradeData, this.state.order.sl, direction)) {
             this.state.logger.log({
               type: "cross",
@@ -417,7 +432,7 @@ export abstract class AbstractState {
     }
   }
 
-  get info() {
+  get info(): TradeResult {
     return {
       reachedEntries: this.state.entries.length,
       reachedTps: this.state.takeProfits.at(-1)?.entry ?? 0,
@@ -428,6 +443,7 @@ export abstract class AbstractState {
       pnl: this.pnl,
       profit: this.profit,
       hitSl: this.state.sl != null,
+      averageEntryPrice: this.averageEntryPrice,
     };
   }
 

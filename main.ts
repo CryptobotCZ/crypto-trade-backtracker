@@ -85,6 +85,16 @@ const addDateRanges = (yargs: any) => {
     });
 };
 
+const addOutputFormattingArgs = (yargs: any) => {
+  yargs.option('anonymize');
+  yargs.option('locale', {
+    type: 'string'
+  });
+  yargs.option('delimiter', {
+    type: 'string'
+  });
+};
+
 yargs(Deno.args)
   .command(
     "backtrack <orderFiles...>",
@@ -99,6 +109,7 @@ yargs(Deno.args)
       addDetailedLog(yargs);
       addFromDetailedLog(yargs);
       addDateRanges(yargs);
+      addOutputFormattingArgs(yargs);
     },
     async (argv: Arguments) => {
       await backtrackCommand(argv as any);

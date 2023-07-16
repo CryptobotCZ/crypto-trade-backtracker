@@ -1,10 +1,13 @@
 import * as fs from "https://deno.land/std@0.192.0/fs/mod.ts";
+import { writeJson } from "https://deno.land/x/jsonfile@1.0.0/write_json.ts";
+import { exportCsv } from "../output/csv.ts";
 
 import {
   AbstractState,
   backtrack,
   getBackTrackEngine,
   Order,
+  TradeResult,
 } from "../backtrack-engine.ts";
 import {
   BinanceItemArray,
@@ -13,7 +16,6 @@ import {
   transformArrayToObject,
 } from "../binance-api.ts";
 import { CornixConfiguration } from "../cornix.ts";
-import { writeJson } from "https://deno.land/x/jsonfile@1.0.0/write_json.ts";
 
 export interface PreBacktrackedData {
   order: Order;
@@ -34,6 +36,9 @@ export interface BackTrackArgs {
   toDate?: string;
   finishRunning?: boolean;
   outputPath?: string;
+  anonymize?: boolean;
+  locale?: string;
+  delimiter?: string;
 }
 
 async function getFileContent<T>(path: string): Promise<T> {
@@ -262,12 +267,25 @@ export async function backtrackCommand(args: BackTrackArgs) {
   if (args.detailedLog) {
     const fileName = args.outputPath ?? `backtrack-results-${Date.now()}.json`;
     await writeJson(fileName, ordersWithResults, { spaces: 2 });
+  } else if (args.outputPath?.indexOf(".csv") !== -1) {
+    const fileName = args.outputPath ?? `backtrack-results-${Date.now()}.csv`;
+    await exportCsv(ordersWithResults, fileName, args.anonymize, {
+      delimiter: args.delimiter,
+      locale: args.locale,
+    });
   }
 }
 
 interface BackTrackResult {
   events: any[];
   state: AbstractState;
+}
+
+export interface DetailedBackTrackResult {
+  order: Order;
+  info: TradeResult;
+  sortedUniqueCrosses: any[];
+  tradeData?: TradeData[];
 }
 
 async function backTrackSingleOrder(

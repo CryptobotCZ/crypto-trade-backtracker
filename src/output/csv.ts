@@ -2,8 +2,8 @@
 import { DetailedBackTrackResult } from "../commands/backtrack.ts";
 
 export interface ExportConfig {
-  locale: string;
-  delimiter: string;
+  locale?: string;
+  delimiter?: string;
   decimalSeparator?: string;
 }
 

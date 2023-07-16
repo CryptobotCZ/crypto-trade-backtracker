@@ -110,20 +110,27 @@ export async function backtrackCommand(args: BackTrackArgs) {
     ? await getFileContent<CornixConfiguration>(args.cornixConfigFile)
     : defaultCornixConfig;
 
-  let rawData = args.fromDetailedLog
-    ? await readInputFilesFromJson<PreBacktrackedData>(args.orderFiles)
-    : (await readInputFilesFromJson<Order>(args.orderFiles)).map((x) => ({
-      order: x,
-      tradeData: null,
-    }));
+  const getInput = async () => {
+    const rawData = args.fromDetailedLog
+        ? await readInputFilesFromJson<PreBacktrackedData>(args.orderFiles)
+        : (await readInputFilesFromJson<Order>(args.orderFiles)).map((x) => ({
+          order: x,
+          tradeData: null,
+        }));
 
-  let orders = rawData.map((x) => {
-    const order = x.order;
-    return {
-      ...order,
-      date: order.date != null ? new Date(order.date) : new Date(Date.now()),
-    };
-  });
+    return rawData.map(x => {
+      return {
+        ...x,
+        order: {
+          ...x.order,
+          date: x.order.date != null ? new Date(x.order.date) : new Date(Date.now()),
+        }
+       };
+    });
+  };
+
+  const rawData = await getInput();
+  let orders = rawData.map(x => x.order);
 
   const tradesForOrders = (rawData as any[]).reduce(
     (map: Map<Order, PreBacktrackedData>, orderData: PreBacktrackedData) => {

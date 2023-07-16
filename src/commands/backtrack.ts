@@ -145,7 +145,7 @@ export async function backtrackCommand(args: BackTrackArgs) {
   }
 
   if (args.toDate) {
-    const to = new Date(args.toDate);
+    const to = new Date(parseInt(args.toDate));
     orders = orders.filter((x) => x.date <= to);
   }
 

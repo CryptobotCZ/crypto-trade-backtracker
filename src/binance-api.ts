@@ -124,6 +124,8 @@ export async function getTradeDataWithCache(
   return tradeData;
 }
 
+let isFirstRun = true;
+
 export async function getTradeData(
   pair: string,
   interval: string,
@@ -132,11 +134,14 @@ export async function getTradeData(
 ) {
   const time = performance.measure("request");
 
-  if (time?.duration < 5000) {
+  if (!isFirstRun && time?.duration < 5000) {
+    console.log(time?.duration);
     console.log("Sleeping to prevent flooding the binance API");
     await sleep(5);
   }
 
+  isFirstRun = false;
+  
   const url = "https://fapi.binance.com/fapi/v1/klines";
 
   const resultStartTime = typeof startTime === "number"

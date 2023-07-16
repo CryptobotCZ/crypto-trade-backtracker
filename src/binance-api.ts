@@ -1,140 +1,172 @@
 import * as fs from "https://deno.land/std@0.192.0/fs/mod.ts";
-import { writeJson } from 'https://deno.land/x/jsonfile/mod.ts';
+import { writeJson } from "https://deno.land/x/jsonfile/mod.ts";
 import { sleep } from "https://deno.land/x/sleep/mod.ts";
 
 export interface TradeData {
-    openTime: number;
-    open: number;
-    high: number;
-    low: number;
-    close: number;
-    volume: number;
-    closeTime: number;
-    quoteAssetVolume: number;
-    numberOfTrades: number;
-    takerBuyBaseAssetVolume: number;
-    takerBuyQuoteAssetVolume: number;
-    ignore: string;
+  openTime: number;
+  open: number;
+  high: number;
+  low: number;
+  close: number;
+  volume: number;
+  closeTime: number;
+  quoteAssetVolume: number;
+  numberOfTrades: number;
+  takerBuyBaseAssetVolume: number;
+  takerBuyQuoteAssetVolume: number;
+  ignore: string;
 }
 
-export type BinanceItemArray = [number, string, string, string, string, string, number, string, number, string, string, string];
+export type BinanceItemArray = [
+  number,
+  string,
+  string,
+  string,
+  string,
+  string,
+  number,
+  string,
+  number,
+  string,
+  string,
+  string,
+];
 
 export function transformArrayToObject(itemArray: BinanceItemArray): TradeData {
-    return {
-        openTime: itemArray[0],
-        open: parseFloat(itemArray[1]),
-        high: parseFloat(itemArray[2]),
-        low: parseFloat(itemArray[3]),
-        close: parseFloat(itemArray[4]),
-        volume: parseFloat(itemArray[5]),
-        closeTime: itemArray[6],
-        quoteAssetVolume: parseFloat(itemArray[7]),
-        numberOfTrades: itemArray[8],
-        takerBuyBaseAssetVolume: parseFloat(itemArray[9]),
-        takerBuyQuoteAssetVolume: parseFloat(itemArray[10]),
-        ignore: itemArray[11]
-    }
+  return {
+    openTime: itemArray[0],
+    open: parseFloat(itemArray[1]),
+    high: parseFloat(itemArray[2]),
+    low: parseFloat(itemArray[3]),
+    close: parseFloat(itemArray[4]),
+    volume: parseFloat(itemArray[5]),
+    closeTime: itemArray[6],
+    quoteAssetVolume: parseFloat(itemArray[7]),
+    numberOfTrades: itemArray[8],
+    takerBuyBaseAssetVolume: parseFloat(itemArray[9]),
+    takerBuyQuoteAssetVolume: parseFloat(itemArray[10]),
+    ignore: itemArray[11],
+  };
 }
 
 enum TimeInterval {
-    mins1 = "1m",
-    mins3 = "3m",
-    mins5 = "5m",
-    mins15 = "15m",
-    mins30 = "30m",
-    hours1 = "1h",
-    hours2 = "2h",
-    hours4 = "4h",
-    hours6 = "6h",
-    hours8 = "8h",
-    hours12 = "12h",
-    days1 = "1d",
-    days3 = "3d",
-    weeks1 = "1w",
-    months1 = "1M"
+  mins1 = "1m",
+  mins3 = "3m",
+  mins5 = "5m",
+  mins15 = "15m",
+  mins30 = "30m",
+  hours1 = "1h",
+  hours2 = "2h",
+  hours4 = "4h",
+  hours6 = "6h",
+  hours8 = "8h",
+  hours12 = "12h",
+  days1 = "1d",
+  days3 = "3d",
+  weeks1 = "1w",
+  months1 = "1M",
 }
 
-export async function loadDataFromCache(pair: string, interval: string, startTime: Date) {
-    const dayStart = startTime.setUTCHours(0, 0, 0, 0);
-    const fileName = `${pair}_${interval}_${dayStart}.json`;
-    const fullPath = `./cache/${fileName}`;
+export async function loadDataFromCache(
+  pair: string,
+  interval: string,
+  startTime: Date,
+) {
+  const dayStart = startTime.setUTCHours(0, 0, 0, 0);
+  const fileName = `${pair}_${interval}_${dayStart}.json`;
+  const fullPath = `./cache/${fileName}`;
 
-    const isReadableFile = await fs.exists(fullPath, {
-        isReadable: true,
-        isFile: true
-    });
+  const isReadableFile = await fs.exists(fullPath, {
+    isReadable: true,
+    isFile: true,
+  });
 
-    if (!isReadableFile) {
-        return null;
-    }
+  if (!isReadableFile) {
+    return null;
+  }
 
-    const data = await Deno.readTextFile(fullPath);
-    return JSON.parse(data) as TradeData[];
+  const data = await Deno.readTextFile(fullPath);
+  return JSON.parse(data) as TradeData[];
 }
 
-export async function getTradeDataWithCache(pair: string, interval: string, startTime?: Date) {
-    if (pair === "SHIBUSDT") { 
-        return [];
-    }
+export async function getTradeDataWithCache(
+  pair: string,
+  interval: string,
+  startTime?: Date,
+) {
+  pair = pair
+    .replace("SUSHIUSDT.P", "SUSHIUSDT")
+    .replace("SUSHIUSDTPERP", "SUSHIUSDT");
 
-    pair = pair.replace("/", "");
+  if (pair === "SHIBUSDT") {
+    return [];
+  }
 
-    const startDate = startTime ?? new Date();
-    const dataFromCache = await loadDataFromCache(pair, interval, startDate);
+  pair = pair.replace("/", "");
 
-    if (dataFromCache != null) {
-        return dataFromCache.length < 1441 ? [] : dataFromCache;
-    }
+  const startDate = startTime ?? new Date();
+  const dataFromCache = await loadDataFromCache(pair, interval, startDate);
 
-    const dayStart = startDate.setUTCHours(0, 0, 0, 0);
-    const tradeData = await getTradeData(pair, interval, startTime);
+  if (dataFromCache != null) {
+    return dataFromCache.length < 1441 ? [] : dataFromCache;
+  }
 
-    if (tradeData.length < 1441) {
-        return [];
-    }
+  const dayStart = startDate.setUTCHours(0, 0, 0, 0);
+  const tradeData = await getTradeData(pair, interval, startTime);
 
-    const fileName = `${pair}_${interval}_${dayStart}.json`;
-    await writeJson(`./cache/${fileName}`, tradeData, { spaces: 2 });
+  if (tradeData.length < 1441) {
+    return [];
+  }
 
-    return tradeData;
+  const fileName = `${pair}_${interval}_${dayStart}.json`;
+  await writeJson(`./cache/${fileName}`, tradeData, { spaces: 2 });
+
+  return tradeData;
 }
 
-export async function getTradeData(pair: string, interval: string, startTime?: Date|number, limit = 1441) {
-    const time = performance.measure('request');
-    
-    if (time?.duration < 5000) {
-        console.log('Sleeping to prevent flooding the binance API');
-        await sleep(5);
-    }
+export async function getTradeData(
+  pair: string,
+  interval: string,
+  startTime?: Date | number,
+  limit = 1441,
+) {
+  const time = performance.measure("request");
 
-    const url = 'https://fapi.binance.com/fapi/v1/klines';
+  if (time?.duration < 5000) {
+    console.log("Sleeping to prevent flooding the binance API");
+    await sleep(5);
+  }
 
-    const resultStartTime = typeof startTime === 'number'
-        ? startTime
-        : typeof startTime === 'object'
-            ? (startTime.getTime())
-            : null;
+  const url = "https://fapi.binance.com/fapi/v1/klines";
 
-    const objWithTime = resultStartTime != null ? { startTime: resultStartTime.toString() } : {} as any;
-    const urlWithParams = url + '?' + new URLSearchParams({
-        'symbol': pair,
-        'contractType': 'PERPETUAL',
-        'interval': interval,
-        ...(objWithTime),
-        'limit': limit,
-    });
+  const resultStartTime = typeof startTime === "number"
+    ? startTime
+    : typeof startTime === "object"
+    ? (startTime.getTime())
+    : null;
 
-    const response = await fetch(urlWithParams);
+  const objWithTime = resultStartTime != null
+    ? { startTime: resultStartTime.toString() }
+    : {} as any;
+  const urlWithParams = url + "?" + new URLSearchParams({
+    "symbol": pair,
+    "contractType": "PERPETUAL",
+    "interval": interval,
+    ...(objWithTime),
+    "limit": limit,
+  });
 
-    if (response.status === 429) {
-        console.log('Flooding binance, have to sleep for a while');
-        sleep(60 * 5);
-    }
+  const response = await fetch(urlWithParams);
 
-    if (response.status !== 200) {
-        throw new Error(`Invalid status ${response.status} for coin ${pair}`);
-    }
+  if (response.status === 429) {
+    console.log("Flooding binance, have to sleep for a while");
+    sleep(60 * 5);
+  }
 
-    const json = await response.json() as BinanceItemArray[];
-    return json.map(x => transformArrayToObject(x));
+  if (response.status !== 200) {
+    throw new Error(`Invalid status ${response.status} for coin ${pair}`);
+  }
+
+  const json = await response.json() as BinanceItemArray[];
+  return json.map((x) => transformArrayToObject(x));
 }

@@ -25,6 +25,10 @@ export interface BackTrackArgs {
   debug?: boolean;
   detailedLog?: boolean;
   fromDetailedLog?: boolean;
+  fromDate?: string;
+  toDate?: string;
+  finishRunning?: boolean;
+  outputPath?: string;
 }
 
 async function getFileContent<T>(path: string): Promise<T> {
@@ -67,11 +71,11 @@ export async function readInputFilesFromJson<T>(
           messages = [...messages, ...messagesFromFile];
         }
       }
-    }
-
-    if (isReadableFile) {
+    } else if (isReadableFile) {
       const messagesFromFile = await getFileContent<T[]>(path);
       messages = [...messages, ...messagesFromFile];
+    } else {
+      console.error(`Could not read file ${path}`);
     }
   }
 
@@ -103,7 +107,7 @@ export async function backtrackCommand(args: BackTrackArgs) {
       tradeData: null,
     }));
 
-  const orders = rawData.map((x) => {
+  let orders = rawData.map((x) => {
     const order = x.order;
     return {
       ...order,
@@ -111,7 +115,19 @@ export async function backtrackCommand(args: BackTrackArgs) {
     };
   });
 
-  const tradeData = rawData.flatMap((x) => x.tradeData);
+  const tradesForOrders = (rawData as any[]).reduce((map: Map<Order, PreBacktrackedData>, orderData: PreBacktrackedData) => {
+    return map.set(orderData.order, orderData);
+  }, new Map()) as Map<Order, PreBacktrackedData>;
+
+  if (args.fromDate) {
+    const from = new Date(parseInt(args.fromDate));
+    orders = orders.filter(x => x.date >= from);
+  }
+
+  if (args.toDate) {
+    const to = new Date(args.toDate);
+    orders = orders.filter(x => x.date <= to);
+  }
 
   let count = 0;
   const ordersWithResults = [];
@@ -127,6 +143,7 @@ export async function backtrackCommand(args: BackTrackArgs) {
           cornixConfig,
         );
       } else {
+        const tradeData = tradesForOrders.get(order)?.tradeData ?? undefined;
         result = await backTrackSingleOrder(
           args,
           order,
@@ -197,7 +214,8 @@ export async function backtrackCommand(args: BackTrackArgs) {
   console.log(JSON.stringify(summary));
 
   if (args.detailedLog) {
-    await writeJson(`complex-analysis.json`, ordersWithResults, { spaces: 2 });
+    const fileName = args.outputPath ?? `backtrack-results-${Date.now()}.json`;
+    await writeJson(fileName, ordersWithResults, { spaces: 2 });
   }
 }
 
@@ -230,6 +248,7 @@ async function backTrackSingleOrder(
     order,
     tradeData,
   );
+
   if (args.debug) {
     events.forEach((event) => console.log(JSON.stringify(event)));
   }
@@ -238,7 +257,7 @@ async function backTrackSingleOrder(
   console.log(JSON.stringify(results));
 
   const crosses = events.filter((x) => x.type === "cross");
-  const uniqueCrosses = {};
+  const uniqueCrosses: {[key: string]: any} = {};
 
   crosses.forEach((cross) => {
     const key = `${cross.subtype}-${cross.id ?? 0}-${cross.direction}`;
@@ -283,7 +302,7 @@ async function backtrackWithBinanceUntilTradeCloseOrCurrentDate(
       break;
     }
 
-    for (let tradeEntry of currentTradeData) {
+    for (const tradeEntry of currentTradeData) {
       let previousState = state;
 
       do {

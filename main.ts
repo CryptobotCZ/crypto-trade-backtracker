@@ -67,6 +67,24 @@ const addFromDetailedLog = (yargs: any) => {
   });
 };
 
+const addDateRanges = (yargs: any) => {
+    yargs.option("fromDate", {
+        describe: "Backtrack orders opened after fromDate. Unix timestamp format.", // 'yyyy-MM-dd hh:mm:ss' format o
+        type: "string"
+    });
+
+    yargs.option("toDate", {
+        describe: "Backtrack orders opened until toDate. Unix timestamp format.",
+        type: "string"
+    });
+
+    yargs.option("finishRunning", {
+        describe: "Let trades opened until toDate finish.",
+        type: "boolean",
+        default: false,
+    });
+};
+
 yargs(Deno.args)
   .command(
     "backtrack <orderFiles...>",
@@ -80,6 +98,7 @@ yargs(Deno.args)
       addDebugParam(yargs);
       addDetailedLog(yargs);
       addFromDetailedLog(yargs);
+      addDateRanges(yargs);
     },
     async (argv: Arguments) => {
       await backtrackCommand(argv as any);

@@ -331,12 +331,12 @@ async function backTrackSingleOrder(
   cornixConfig: CornixConfiguration,
   tradeData?: TradeData[],
 ): Promise<BackTrackResult> {
-  if (args.candlesFiles) {
+  if (tradeData == null && args.candlesFiles) {
     const binanceRawData = await readInputFilesFromJson<BinanceItemArray>(
       args.candlesFiles!,
     );
     tradeData = binanceRawData.map((x) => transformArrayToObject(x));
-  } else if ((args.downloadBinanceData ?? true)) {
+  } else if (tradeData == null && (args.downloadBinanceData ?? true)) {
     tradeData = await getTradeDataWithCache(order.coin, "1m", order.date);
   } else if (tradeData == null) {
     throw new Error(

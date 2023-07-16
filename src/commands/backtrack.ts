@@ -154,7 +154,7 @@ export async function backtrackCommand(args: BackTrackArgs) {
 
   for (const order of orders) {
     try {
-      console.log(`Backtracking coin ${order.coin}: `);
+      console.log(`Backtracking trade ${order.coin} ${order.direction} ${order.date}`);
 
       if (args.debug) {
         console.log(JSON.stringify(order));
@@ -186,11 +186,24 @@ export async function backtrackCommand(args: BackTrackArgs) {
         "backtrack_start",
         "backtrack_end",
       );
-      console.trace(`It took ${time.duration}ms`);
+
+      if (args.debug) {
+        console.trace(`It took ${time.duration}ms`);
+      }
 
       const results = result?.state?.info;
-      console.log(`Results for coin ${order.coin}: `);
-      console.log(JSON.stringify(results));
+
+      console.log(`Open time: ${results.openTime}`);
+      console.log(`Close time: ${results.closeTime}`);
+      console.log(`Is closed: ${results.isClosed}`);
+      console.log(`Is profitable: ${results.isProfitable}`);
+      console.log(`PnL: ${results.pnl?.toFixed(2)}%`);
+      console.log(`Profit: ${results.profit?.toFixed(2)}`);
+      console.log(`Hit SL: ${results.hitSl}`);
+      console.log(`Average entry price: ${results.averageEntryPrice.toFixed(2)}`);
+      console.log('---------------------------------------');
+
+//      console.log(JSON.stringify(results));
 
       let sortedUniqueCrosses: any[] = [];
 
@@ -228,11 +241,14 @@ export async function backtrackCommand(args: BackTrackArgs) {
     }
 
     count++;
-    console.trace(
-      `Progress: ${count} / ${orders.length} = ${
-        (count / orders.length * 100).toFixed(2)
-      }%`,
-    );
+    
+    if (args.debug) {
+      console.trace(
+          `Progress: ${count} / ${orders.length} = ${
+              (count / orders.length * 100).toFixed(2)
+          }%`,
+      );
+    }
   }
 
   const summary = ordersWithResults.reduce((sum, curr) => {
@@ -269,7 +285,16 @@ export async function backtrackCommand(args: BackTrackArgs) {
     pctSl: 0,
   });
 
-  console.log(JSON.stringify(summary));
+  console.log('----------- Summary results -----------');
+  console.log(`Count orders: ${summary.countOrders}`);
+  console.log(`Count Profitable: ${summary.countProfitable}`);
+  console.log(`Count SL: ${summary.countSL}`);
+  console.log(`Count hit all TPs: ${summary.countFullTp}`);
+  console.log(`Total PnL: ${summary.totalPnl.toFixed(2)}%`);
+  console.log(`PnL of profitable trades: ${summary.positivePnl.toFixed(2)}`);
+  console.log(`PnL of SL trades: ${summary.negativePnl.toFixed(2)}`);
+  console.log(`Average number of reached TPs: ${summary.averageReachedTps.toFixed(2)}`);
+  console.log(`Percentage of SL: ${summary.pctSl.toFixed(2)}`);
 
   if (args.detailedLog) {
     const fileName = args.outputPath ?? `backtrack-results-${Date.now()}.json`;

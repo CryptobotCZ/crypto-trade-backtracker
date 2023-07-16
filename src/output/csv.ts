@@ -89,7 +89,8 @@ export async function exportCsv(
 
   const csvHeader = [
     "signalId",
-    "date",
+    "date open",
+    "date closed",
     "coin",
     "exchange",
     "direction",
@@ -133,6 +134,7 @@ export async function exportCsv(
     return [
       (order as any).signalId,
       order.date.toLocaleDateString(usedConfig.locale, options as any),
+      x.info.closeTime?.toLocaleDateString(usedConfig.locale, options as any) ?? "",
       order.coin,
       order.exchange,
       order.direction,

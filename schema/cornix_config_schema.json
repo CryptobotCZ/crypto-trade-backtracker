@@ -1,0 +1,128 @@
+﻿{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "type": "object",
+  "$id": "CornixConfiguration",
+  "properties": {
+    "amount": {
+      "type": "number"
+    },
+    "closeTradeOnTpSlBeforeEntry": {
+      "type": "boolean"
+    },
+    "firstEntryGracePct": {
+      "type": "number"
+    },
+    "entries": {
+      "oneOf": [
+        {
+          "type": "string",
+          "enum": [
+            "Evenly Divided",
+            "One Target",
+            "Two Targets",
+            "Three Targets",
+            "Fifty On First Target",
+            "Decreasing Exponential",
+            "Increasing Exponential",
+            "Skip First"
+          ]
+        },
+        {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/PriceTarget"
+          }
+        }
+      ]
+    },
+    "tps": {
+      "oneOf": [
+        {
+          "type": "string",
+          "enum": [
+            "Evenly Divided",
+            "One Target",
+            "Two Targets",
+            "Three Targets",
+            "Fifty On First Target",
+            "Decreasing Exponential",
+            "Increasing Exponential",
+            "Skip First"
+          ]
+        },
+        {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/PriceTarget"
+          }
+        }
+      ]
+    },
+    "trailingStop": {
+      "oneOf": [
+        {"$ref": "#/definitions/TrailingStopWithout"},
+        {"$ref": "#/definitions/TrailingStopMovingTarget"}
+      ]
+    },
+    "trailingTakeProfit": {
+      "oneOf": [
+        {"type": "number"},
+        {"enum": ["without"]}
+      ]
+    },
+    "sl": {
+      "type": "object",
+      "properties": {
+        "defaultStopLossPct": {
+          "type": "number"
+        },
+        "automaticLeverageAdjustment": {
+          "type": "boolean"
+        },
+        "stopLimitPriceReduction": {
+          "type": "number"
+        },
+        "stopTimeoutMinutes": {
+          "type": "number"
+        },
+        "stopType": {
+          "type": "string",
+          "enum": ["Limit", "Market"]
+        }
+      }
+    }
+  },
+  "definitions": {
+    "PriceTarget": {
+      "type": "object",
+      "properties": {
+        "percentage": {
+          "type": "number"
+        }
+      },
+      "required": ["percentage"]
+    },
+    "TrailingStopWithout": {
+      "type": "object",
+      "properties": {
+        "type": {
+          "enum": ["without"]
+        }
+      },
+      "required": ["type"]
+    },
+    "TrailingStopMovingTarget": {
+      "type": "object",
+      "properties": {
+        "type": {
+          "enum": ["moving-target", "moving-2-target"]
+        },
+        "trigger": {
+          "type": "number"
+        }
+      },
+      "required": ["type", "trigger"]
+    }
+  },
+  "required": ["amount", "entries", "tps", "trailingStop", "trailingTakeProfit"]
+}

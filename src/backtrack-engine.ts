@@ -318,7 +318,7 @@ export abstract class AbstractState {
 
       const tps = this.state.order.tps;
       tps.forEach((tp, index) => {
-        this.logIfMatchesImportantPrice(tradeData, this.averageEntryPrice, {
+        this.logIfMatchesImportantPrice(tradeData, tp, {
           subtype: "tp",
           id: index + 1,
         });

@@ -192,6 +192,10 @@ export abstract class AbstractState {
   }
 
   get averageEntryPrice() {
+    if (this.boughtCoins === 0) {
+      return 0;
+    }
+
     return this.spentAmountWithLev / this.boughtCoins;
   }
 
@@ -226,6 +230,10 @@ export abstract class AbstractState {
   }
 
   get pnl() {
+    if (this.spentAmount === 0) {
+      return 0;
+    }
+
     const gainPct = this.profit / this.spentAmount;
     return gainPct * 100;
   }
@@ -524,10 +532,7 @@ class InitialState extends AbstractState {
   }
 
   hitTp(tradeData: TradeData): AbstractState {
-    return new TakeProfitBeforeEntryState({
-      ...this.state,
-      tradeCloseTime: new Date(tradeData.openTime),
-    });
+    return new TakeProfitBeforeEntryState(this, tradeData);
   }
 }
 
@@ -771,6 +776,19 @@ class TakeProfitReachedState extends EntryPointReachedState {
 
 class TakeProfitBeforeEntryState extends AbstractState {
   // boring state, do nothing
+
+  constructor(parentState: AbstractState, tradeData: TradeData) {
+    super({
+      ...parentState.state,
+      tradeCloseTime: new Date(tradeData.openTime),
+    });
+
+    this.state.logger.log({
+      type: "close",
+      subtype: "TP before entry",
+      timestamp: tradeData.openTime,
+    });
+  }
 }
 
 class AllProfitsDoneState extends AbstractState {

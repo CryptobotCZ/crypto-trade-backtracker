@@ -43,10 +43,19 @@ export type TrailingStop = TrailingStopWithout | TrailingStopMovingTarget;
 
 export interface CornixConfiguration {
   amount: number;
+  closeTradeOnTpSlBeforeEntry?: boolean;
+  firstEntryGracePct?: number;
   entries: Strategy;
   tps: Strategy;
   trailingStop: TrailingStop;
   trailingTakeProfit: number | "without";
+  sl?: {
+    defaultStopLossPct?: number;
+    automaticLeverageAdjustment?: boolean;
+    stopLimitPriceReduction?: number;
+    stopTimeoutMinutes?: number;
+    stopType?: "Limit" | "Market";
+  };
 }
 
 /**
@@ -134,4 +143,28 @@ export function mapPriceTargets(
   }
 
   return [{ id: 1, percentage: 100, price: orderTargets[0] }];
+}
+
+export function makeAutomaticLeverageAdjustment(
+  pct: number,
+  leverage: number,
+  isTrailing: boolean,
+) {
+  const adjustedValue = pct / leverage;
+
+  if (isTrailing) {
+    const minTrailing = 0.2 / 100;
+    return Math.max(
+      minTrailing,
+      adjustedValue,
+    );
+  }
+
+  return adjustedValue;
+}
+
+export function calculateWeightedAverage(priceTargets: PriceTargetWithPrice[]) {
+  return priceTargets.reduce((weightedAverage, priceTarget) => {
+    return weightedAverage + (priceTarget.price * priceTarget.percentage);
+  }, 0);
 }

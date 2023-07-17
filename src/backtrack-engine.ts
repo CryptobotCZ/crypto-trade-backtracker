@@ -1,6 +1,8 @@
 import { TradeData } from "./binance-api.ts";
 import {
+  calculateWeightedAverage,
   CornixConfiguration,
+  makeAutomaticLeverageAdjustment,
   mapPriceTargets,
   PriceTargetWithPrice,
 } from "./cornix.ts";
@@ -451,10 +453,10 @@ export abstract class AbstractState {
 
   getEffectiveTrailingPct() {
     if (this.state.config.trailingTakeProfit !== "without") {
-      const minTrailing = 0.2 / 100;
-      return Math.max(
-        minTrailing,
-        this.state.config.trailingTakeProfit / this.leverage,
+      return makeAutomaticLeverageAdjustment(
+        this.state.config.trailingTakeProfit,
+        this.leverage,
+        true,
       );
     }
 
@@ -492,6 +494,15 @@ class InitialState extends AbstractState {
     const cornixConfig: CornixConfiguration = backTrackConfig?.detailedLog
       ? { ...config, trailingStop: { type: "without" } }
       : config;
+
+    if (order.sl == null && cornixConfig?.sl?.defaultStopLossPct > 0) {
+      const slPct = (cornixConfig?.sl?.automaticLeverageAdjustment ?? true)
+        ? makeAutomaticLeverageAdjustment()
+        : cornixConfig?.sl?.defaultStopLossPct;
+
+      const averageEntryPrice = calculateWeightedAverage(remainingEntries);
+      order.sl = (1 - slPct) * averageEntryPrice;
+    }
 
     const state: InternalState = {
       allocatedAmount: order.amount ?? config.amount,

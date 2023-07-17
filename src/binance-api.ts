@@ -141,7 +141,7 @@ export async function getTradeData(
   }
 
   isFirstRun = false;
-  
+
   const url = "https://fapi.binance.com/fapi/v1/klines";
 
   const resultStartTime = typeof startTime === "number"

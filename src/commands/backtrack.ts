@@ -112,25 +112,27 @@ export async function backtrackCommand(args: BackTrackArgs) {
 
   const getInput = async () => {
     const rawData = args.fromDetailedLog
-        ? await readInputFilesFromJson<PreBacktrackedData>(args.orderFiles)
-        : (await readInputFilesFromJson<Order>(args.orderFiles)).map((x) => ({
-          order: x,
-          tradeData: null,
-        }));
+      ? await readInputFilesFromJson<PreBacktrackedData>(args.orderFiles)
+      : (await readInputFilesFromJson<Order>(args.orderFiles)).map((x) => ({
+        order: x,
+        tradeData: null,
+      }));
 
-    return rawData.map(x => {
+    return rawData.map((x) => {
       return {
         ...x,
         order: {
           ...x.order,
-          date: x.order.date != null ? new Date(x.order.date) : new Date(Date.now()),
-        }
-       };
+          date: x.order.date != null
+            ? new Date(x.order.date)
+            : new Date(Date.now()),
+        },
+      };
     });
   };
 
   const rawData = await getInput();
-  let orders = rawData.map(x => x.order);
+  let orders = rawData.map((x) => x.order);
 
   const tradesForOrders = (rawData as any[]).reduce(
     (map: Map<Order, PreBacktrackedData>, orderData: PreBacktrackedData) => {
@@ -154,7 +156,9 @@ export async function backtrackCommand(args: BackTrackArgs) {
 
   for (const order of orders) {
     try {
-      console.log(`Backtracking trade ${order.coin} ${order.direction} ${order.date}`);
+      console.log(
+        `Backtracking trade ${order.coin} ${order.direction} ${order.date}`,
+      );
 
       if (args.debug) {
         console.log(JSON.stringify(order));
@@ -192,7 +196,7 @@ export async function backtrackCommand(args: BackTrackArgs) {
       }
 
       if (args.debug) {
-        result.events.forEach(event => console.log(JSON.stringify(event)));
+        result.events.forEach((event) => console.log(JSON.stringify(event)));
       }
 
       const results = result?.state?.info;
@@ -204,10 +208,12 @@ export async function backtrackCommand(args: BackTrackArgs) {
       console.log(`PnL: ${results.pnl?.toFixed(2)}%`);
       console.log(`Profit: ${results.profit?.toFixed(2)}`);
       console.log(`Hit SL: ${results.hitSl}`);
-      console.log(`Average entry price: ${results.averageEntryPrice.toFixed(2)}`);
-      console.log('---------------------------------------');
+      console.log(
+        `Average entry price: ${results.averageEntryPrice.toFixed(2)}`,
+      );
+      console.log("---------------------------------------");
 
-//      console.log(JSON.stringify(results));
+      //      console.log(JSON.stringify(results));
 
       let sortedUniqueCrosses: any[] = [];
 
@@ -216,7 +222,9 @@ export async function backtrackCommand(args: BackTrackArgs) {
         const uniqueCrosses: { [key: string]: any } = {};
 
         crosses.forEach((cross, idx) => {
-          const crossType = cross.subtype.indexOf('trailing') === -1 ? cross.subtype : `${cross.subtype}-${idx}`;
+          const crossType = cross.subtype.indexOf("trailing") === -1
+            ? cross.subtype
+            : `${cross.subtype}-${idx}`;
           const key = `${crossType}-${cross.id ?? 0}-${cross.direction}`;
           if (!Object.hasOwn(uniqueCrosses, key)) {
             uniqueCrosses[key] = cross;
@@ -246,12 +254,12 @@ export async function backtrackCommand(args: BackTrackArgs) {
     }
 
     count++;
-    
+
     if (args.debug) {
       console.trace(
-          `Progress: ${count} / ${orders.length} = ${
-              (count / orders.length * 100).toFixed(2)
-          }%`,
+        `Progress: ${count} / ${orders.length} = ${
+          (count / orders.length * 100).toFixed(2)
+        }%`,
       );
     }
   }
@@ -290,7 +298,7 @@ export async function backtrackCommand(args: BackTrackArgs) {
     pctSl: 0,
   });
 
-  console.log('----------- Summary results -----------');
+  console.log("----------- Summary results -----------");
   console.log(`Count orders: ${summary.countOrders}`);
   console.log(`Count Profitable: ${summary.countProfitable}`);
   console.log(`Count SL: ${summary.countSL}`);
@@ -298,7 +306,9 @@ export async function backtrackCommand(args: BackTrackArgs) {
   console.log(`Total PnL: ${summary.totalPnl.toFixed(2)}%`);
   console.log(`PnL of profitable trades: ${summary.positivePnl.toFixed(2)}`);
   console.log(`PnL of SL trades: ${summary.negativePnl.toFixed(2)}`);
-  console.log(`Average number of reached TPs: ${summary.averageReachedTps.toFixed(2)}`);
+  console.log(
+    `Average number of reached TPs: ${summary.averageReachedTps.toFixed(2)}`,
+  );
   console.log(`Percentage of SL: ${summary.pctSl.toFixed(2)}`);
 
   if (args.detailedLog) {
@@ -359,7 +369,9 @@ async function backtrackWithBinanceUntilTradeCloseOrCurrentDate(
   cornixConfig: CornixConfiguration,
 ): Promise<BackTrackResult> {
   // always get full day data
-  let currentDate = new Date(new Date(order.date.getTime()).setUTCHours(0, 0, 0, 0));
+  let currentDate = new Date(
+    new Date(order.date.getTime()).setUTCHours(0, 0, 0, 0),
+  );
   let { state, events } = getBackTrackEngine(cornixConfig, order, {
     detailedLog: args.detailedLog,
   });

@@ -67,7 +67,7 @@ export async function exportCsv(
     useGrouping: false,
   });
   const decimalSeparator = usedConfig.decimalSeparator ??
-    getDecimalSeparator(usedConfig.locale);
+    getDecimalSeparator(usedConfig.locale!);
 
   const maxStats = backTrackResults.reduce((stats: any, x) => {
     return {
@@ -134,7 +134,8 @@ export async function exportCsv(
     return [
       (order as any).signalId,
       order.date.toLocaleDateString(usedConfig.locale, options as any),
-      x.info.closeTime?.toLocaleDateString(usedConfig.locale, options as any) ?? "",
+      x.info.closeTime?.toLocaleDateString(usedConfig.locale, options as any) ??
+        "",
       order.coin,
       order.exchange,
       order.direction,

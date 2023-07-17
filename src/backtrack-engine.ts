@@ -287,7 +287,11 @@ export abstract class AbstractState {
     }
   }
 
-  logIfMatchesImportantPrice(tradeData: TradeData, importantPrice: number, logProperties: any) {
+  logIfMatchesImportantPrice(
+    tradeData: TradeData,
+    importantPrice: number,
+    logProperties: any,
+  ) {
     (["up", "down"] as UpOrDown[]).forEach((direction) => {
       if (this.crossedPrice(tradeData, importantPrice, direction)) {
         this.state.logger.log({
@@ -326,7 +330,7 @@ export abstract class AbstractState {
 
       if (this.state.order.sl) {
         this.logIfMatchesImportantPrice(tradeData, this.state.order.sl, {
-          subtype: "sl"
+          subtype: "sl",
         });
       }
     }
@@ -680,13 +684,21 @@ class EntryPointReachedState extends AbstractState {
     }
 
     if (this.shouldTrailingUpdatePrice(tradeData)) {
-      this.logIfMatchesImportantPrice(tradeData, this.currentTrailingReferencePrice, {
-        subtype: "trailingUpdate"
-      });
+      this.logIfMatchesImportantPrice(
+        tradeData,
+        this.currentTrailingReferencePrice,
+        {
+          subtype: "trailingUpdate",
+        },
+      );
     } else if (this.shouldTrailingStop(tradeData)) {
-      this.logIfMatchesImportantPrice(tradeData, this.currentTrailingStopPrice, {
-        subtype: "trailingStop"
-      });
+      this.logIfMatchesImportantPrice(
+        tradeData,
+        this.currentTrailingStopPrice,
+        {
+          subtype: "trailingStop",
+        },
+      );
     }
   }
 }
@@ -767,10 +779,10 @@ class AllProfitsDoneState extends AbstractState {
     super(newState);
 
     this.state.logger.log({
-       type: "close",
-       subtype: "all TPs reached",
-       tp: tp.id,
-       timestamp: tradeData.openTime,
+      type: "close",
+      subtype: "all TPs reached",
+      tp: tp.id,
+      timestamp: tradeData.openTime,
     });
   }
 }

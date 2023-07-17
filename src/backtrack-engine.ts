@@ -287,7 +287,7 @@ export abstract class AbstractState {
     }
   }
 
-  logIfMatchesImportantPrice(tradeData, importantPrice, logProperties) {
+  logIfMatchesImportantPrice(tradeData: TradeData, importantPrice: number, logProperties: any) {
     (["up", "down"] as UpOrDown[]).forEach((direction) => {
       if (this.crossedPrice(tradeData, importantPrice, direction)) {
         this.state.logger.log({
@@ -544,6 +544,7 @@ class EntryPointReachedState extends AbstractState {
 
       this.state.logger.log({
         type: "trailing activated",
+        tp: this.highestReachedTp.id,
         price,
         timestamp: tradeData.openTime,
       });
@@ -560,6 +561,7 @@ class EntryPointReachedState extends AbstractState {
 
       this.state.logger.log({
         type: "trailing price updated",
+        tp: this.highestReachedTp.id,
         price,
         trailingStopPrice: this.currentTrailingStopPrice,
         timestamp: tradeData.openTime,
@@ -618,6 +620,7 @@ class EntryPointReachedState extends AbstractState {
 
     this.state.logger.log({
       type: "sell with trailing",
+      tp: highestReachedTp.id,
       price: price,
       total: spentOnTp,
       sold: soldCoins,
@@ -762,6 +765,13 @@ class AllProfitsDoneState extends AbstractState {
     };
 
     super(newState);
+
+    this.state.logger.log({
+       type: "close",
+       subtype: "all TPs reached",
+       tp: tp.id,
+       timestamp: tradeData.openTime,
+    });
   }
 }
 

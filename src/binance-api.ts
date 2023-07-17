@@ -96,7 +96,9 @@ export async function getTradeDataWithCache(
 ) {
   pair = pair
     .replace("SUSHIUSDT.P", "SUSHIUSDT")
-    .replace("SUSHIUSDTPERP", "SUSHIUSDT");
+    .replace("SUSHIUSDTPERP", "SUSHIUSDT")
+    .replace(".P", "")
+    .replace("PERP", "");
 
   if (pair === "SHIBUSDT") {
     return [];

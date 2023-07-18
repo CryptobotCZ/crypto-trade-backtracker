@@ -1,8 +1,9 @@
 import { assertEquals } from "https://deno.land/std@0.188.0/testing/asserts.ts";
 import { TradeData } from "./../src/binance-api.ts";
-import { backtrack, Order } from "../src/backtrack-engine.ts";
+import { backtrack, Order, TradeResult } from "../src/backtrack-engine.ts";
 import { getTrade } from "./_helpers.ts";
 import { CornixConfiguration } from "../src/cornix.ts";
+import { assertArrayIncludes } from "https://deno.land/std/testing/asserts.ts";
 
 const config: CornixConfiguration = {
   amount: 100,
@@ -15,16 +16,15 @@ const config: CornixConfiguration = {
   trailingStop: { type: "without" },
 };
 
-Deno.test(function testSingleEntryPointKeepOpen() {
+export function testSingleEntryPointKeepOpenUnrealizedProfit0() {
   const order: Order = {
     coin: "INJUSDT",
     leverage: 10,
     exchange: "Binance Futures",
     entries: [100, 50],
-    tps: [110, 120, 130],
+    tps: [110, 150],
     sl: 40,
-    date: new Date(2023, 6 - 1, 15, 16 - 1, 50),
-    timestamp: new Date(2023, 6 - 1, 15, 16 - 1, 50).getTime(),
+    date: new Date(2023, 6 - 1, 15, 16 - 1, 50)
   };
 
   const tradeData: TradeData[] = [
@@ -34,18 +34,134 @@ Deno.test(function testSingleEntryPointKeepOpen() {
       close: 110,
       closeTime: new Date(2023, 6 - 1, 15, 16, 50).getTime(),
       high: 130,
-      low: 90,
+      low: 100,
     }),
   ];
 
-  const { events, results, state } = backtrack(config, order, tradeData);
 
+  const { events, results, state } = backtrack(config, order, tradeData);
   events.forEach((x) => console.log(x));
+
+  assertArrayIncludes(events, [{
+    type: "buy",
+    price: 100,
+    spent: 100,
+    spentWithLeverage: 1000,
+    bought: 10,
+    timestamp: 1686837000000
+  }]);
+
+  assertArrayIncludes(events, [{
+    type: "sell",
+    price: 110,
+    total: 55,
+    sold: 0.5,
+    timestamp: 1686837000000
+  }]);
+
+  const expectedInfo = {
+    reachedEntries: 1,
+    reachedTps: 1,
+    openTime: new Date('2023-06-15T13:50:00.000Z'),
+    closeTime: null,
+    isClosed: false,
+    isProfitable: true,
+    pnl: 5,
+    profit: 5,
+    hitSl: false,
+    averageEntryPrice: 100,
+    allocatedAmount: 100,
+    spentAmount: 100,
+    realizedProfit: 5,
+    unrealizedProfit: 0
+  };
+
+  assertEquals(state.info, expectedInfo);
+
   console.log(events);
   console.log(results);
-});
+}
 
-Deno.test(function testSingleEntrySingleTp() {
+export function testSingleEntryPointKeepOpenWithUnrealizedProfit() {
+  const order: Order = {
+    coin: "INJUSDT",
+    leverage: 10,
+    exchange: "Binance Futures",
+    entries: [100, 50],
+    tps: [110, 150],
+    sl: 40,
+    date: new Date('2023-06-15T13:50:00.000Z')
+  };
+
+  const tradeData: TradeData[] = [
+    getTrade({
+      openTime: new Date(2023, 6 - 1, 15, 16 - 1, 50).getTime(),
+      open: 100,
+      close: 110,
+      closeTime: new Date(2023, 6 - 1, 15, 16, 50).getTime(),
+      high: 130,
+      low: 100,
+    }),
+    getTrade({
+      openTime: new Date(2023, 6 - 1, 15, 16 - 1, 55).getTime(),
+      open: 110,
+      close: 115,
+      closeTime: new Date(2023, 6 - 1, 15, 16, 55).getTime(),
+      high: 115,
+      low: 115,
+    }),
+  ];
+
+
+  const { events, results, state } = backtrack(config, order, tradeData);
+  events.forEach((x) => console.log(x));
+
+  assertArrayIncludes(events, [{
+    type: "buy",
+    price: 100,
+    spent: 100,
+    spentWithLeverage: 1000,
+    bought: 10,
+    timestamp: 1686837000000
+  }]);
+
+  assertArrayIncludes(events, [{
+    type: "sell",
+    price: 110,
+    total: 55,
+    sold: 0.5,
+    timestamp: 1686837000000
+  }]);
+
+  const expectedInfo = {
+    reachedEntries: 1,
+    reachedTps: 1,
+    openTime: new Date('2023-06-15T13:50:00.000Z'),
+    closeTime: null,
+    isClosed: false,
+    isProfitable: true,
+    pnl: 100,
+    profit: 100,
+    hitSl: false,
+    averageEntryPrice: 100,
+    allocatedAmount: 100,
+    spentAmount: 100,
+    realizedProfit: 5,
+    unrealizedProfit: 95
+  };
+
+  assertEquals(state.info, expectedInfo);
+  assertEquals(state.profitBasedOnSoldCoins, state.profit);
+
+  console.log(events);
+  console.log(results);
+}
+
+
+Deno.test('Test Single Entry - Trade still open - Unrealized profit 0', testSingleEntryPointKeepOpenUnrealizedProfit0);
+Deno.test('Test Single Entry - Trade still open - With unrealized profit', testSingleEntryPointKeepOpenWithUnrealizedProfit);
+
+export function testSingleEntrySingleTp() {
   const order: Order = {
     coin: "INJUSDT",
     leverage: 10,
@@ -53,8 +169,7 @@ Deno.test(function testSingleEntrySingleTp() {
     entries: [100, 50],
     tps: [120],
     sl: 40,
-    date: new Date(2023, 6 - 1, 15, 16 - 1, 50),
-    timestamp: new Date(2023, 6 - 1, 15, 16 - 1, 50).getTime(),
+    date: new Date(2023, 6 - 1, 15, 16 - 1, 50)
   };
 
   const tradeData: TradeData[] = [
@@ -70,24 +185,37 @@ Deno.test(function testSingleEntrySingleTp() {
 
   const { events, results, state } = backtrack(config, order, tradeData);
 
-  assertEquals(state.info.pnl, 200);
-  assertEquals(state.info.profit, 200);
-  assertEquals(state.info.isProfitable, true);
-  assertEquals(state.info.isClosed, true);
-  assertEquals(state.info.hitSl, false);
-  assertEquals(state.info.reachedEntries, 1);
-  assertEquals(state.info.reachedTps, 1);
-});
+  const expectedInfo: TradeResult = {
+    pnl: 200,
+    profit: 200,
+    realizedProfit: 200,
+    unrealizedProfit: 0,
+    isProfitable: true,
+    isClosed: true,
+    hitSl: false,
+    reachedEntries: 1,
+    reachedTps: 1,
+    allocatedAmount: 100,
+    spentAmount: 100,
+    averageEntryPrice: 100,
+    openTime: new Date('2023-06-15T13:50:00.000Z'),
+    closeTime: new Date('2023-06-15T13:50:00.000Z'),
+  };
+
+  assertEquals(state.info, expectedInfo);
+}
+
+Deno.test('Test Single Entry Single TP', testSingleEntrySingleTp);
 
 Deno.test(function testSingleEntrySingleTpWithoutLeverage() {
   const order: Order = {
+    leverage: 1,
     coin: "INJUSDT",
     exchange: "Binance Futures",
     entries: [100, 50],
     tps: [120],
     sl: 40,
-    date: new Date(2023, 6 - 1, 15, 16 - 1, 50),
-    timestamp: new Date(2023, 6 - 1, 15, 16 - 1, 50).getTime(),
+    date: new Date(2023, 6 - 1, 15, 16 - 1, 50)
   };
 
   const tradeData: TradeData[] = [
@@ -136,8 +264,7 @@ Deno.test(function testSingleEntryMultipleTps() {
     leverage: 20,
     tps: [5.235, 5.295, 5.419],
     sl: 4.980,
-    date: tradeOpenTime,
-    timestamp: tradeOpenTime.getTime(),
+    date: tradeOpenTime
   };
 
   const tradeData: TradeData[] = [

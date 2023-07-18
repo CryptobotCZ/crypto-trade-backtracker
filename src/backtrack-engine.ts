@@ -12,8 +12,7 @@ export interface Order {
   coin: string;
   leverage?: number;
   exchange?: string;
-  date: Date;
-  timestamp: number;
+  date: Date|number;
   entries: number[];
   tps: number[];
   sl: number;
@@ -533,24 +532,29 @@ class InitialState extends AbstractState {
       ? { ...config, trailingStop: { type: "without" } }
       : config;
 
-    if (order.sl == null && cornixConfig?.sl?.defaultStopLossPct > 0) {
+    if (cornixConfig?.maxLeverage != null && order.leverage != cornixConfig?.maxLeverage) {
+      order.leverage = cornixConfig?.maxLeverage;
+    }
+
+    const cornixDefaultSl = cornixConfig?.sl?.defaultStopLossPct ?? 0;
+    const leverage = order.leverage ?? 1;
+
+    if (order.sl == null && cornixDefaultSl > 0) {
       const slPct = (cornixConfig?.sl?.automaticLeverageAdjustment ?? true)
-        ? makeAutomaticLeverageAdjustment()
-        : cornixConfig?.sl?.defaultStopLossPct;
+        ? makeAutomaticLeverageAdjustment(cornixDefaultSl, leverage, false)
+        : cornixDefaultSl;
 
       const averageEntryPrice = calculateWeightedAverage(remainingEntries);
       order.sl = (1 - slPct) * averageEntryPrice;
     }
 
-    if (cornixConfig?.maxLeverage != null && order.leverage != cornixConfig?.maxLeverage) {
-      order.leverage = cornixConfig?.maxLeverage;
-    }
-
     logger.verbose({ type: "info", subType: "config", values: cornixConfig });
+
+    const openTime = typeof order.date === 'number' ? new Date(order.date) : order.date;
 
     const state: InternalState = {
       allocatedAmount: order.amount ?? config.amount,
-      tradeOpenTime: order.date, // new Date(order.timestamp),
+      tradeOpenTime: openTime,
       remainingEntries,
       remainingTps,
       order: { ...order, direction },
@@ -617,7 +621,7 @@ class EntryPointReachedState extends AbstractState {
 
       this.state.logger.log({
         type: "trailing price updated",
-        tp: this.highestReachedTp.id,
+        tp: this.highestReachedTp?.id,
         price,
         trailingStopPrice: this.currentTrailingStopPrice,
         timestamp: tradeData.openTime,
@@ -846,7 +850,7 @@ class AllProfitsDoneState extends AbstractState {
     this.state.logger.log({
       type: "close",
       subtype: "all TPs reached",
-      tp: tp.id,
+      tp: tp.entry,
       timestamp: tradeData.openTime,
     });
   }

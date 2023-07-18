@@ -69,7 +69,7 @@ enum TimeInterval {
 }
 
 function getCachePath() {
-  return global.inputArguments.cachePath ?? './cache/';
+  return global.inputArguments?.cachePath ?? './cache/';
 }
 
 export async function loadDataFromCache(
@@ -128,6 +128,9 @@ export async function getTradeDataWithCache(
 
   const fileName = `${pair}_${interval}_${dayStart}.json`;
   const cacheDir = getCachePath();
+
+  await fs.ensureDir(cacheDir);
+
   const fullPath = `${cacheDir}/${fileName}`;
   await writeJson(fullPath, tradeData, { spaces: 2 });
 

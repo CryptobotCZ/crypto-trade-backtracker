@@ -52,7 +52,11 @@ async function getFileContent<T>(path: string): Promise<T> {
   }
 
   const fileContent = await Deno.readTextFile(path);
-  return JSON.parse(fileContent) as T;
+  const fixedFileContent = fileContent
+    ?.replace(/\n/g, " ")
+    ?.replace(/\r/g, " ")
+    ?.replace(/\t/g, " ") ?? "";
+  return JSON.parse(fixedFileContent) as T;
 }
 
 export async function readInputFilesFromJson<T>(

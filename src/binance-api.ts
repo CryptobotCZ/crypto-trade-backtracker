@@ -1,7 +1,7 @@
 import * as fs from "https://deno.land/std@0.192.0/fs/mod.ts";
 import { writeJson } from "https://deno.land/x/jsonfile/mod.ts";
 import { sleep } from "https://deno.land/x/sleep/mod.ts";
-import {global} from "../main.ts";
+import {  global } from "./globals.ts";
 
 export interface TradeData {
   openTime: number;

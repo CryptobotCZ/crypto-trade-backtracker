@@ -4,6 +4,7 @@ import {
   backtrackCommand,
   defaultCornixConfig,
 } from "./src/commands/backtrack.ts";
+import {  global } from "./src/globals.ts";
 
 const addInputFilesArg = (yargs: any) => {
   yargs.positional("orderFiles", {
@@ -100,10 +101,6 @@ const addOutputFormattingArgs = (yargs: any) => {
   yargs.option('delimiter', {
     type: 'string'
   });
-};
-
-export const global = {
-  inputArguments: null,
 };
 
 yargs(Deno.args)

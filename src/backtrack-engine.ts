@@ -243,21 +243,34 @@ export abstract class AbstractState {
   }
 
   get realizedProfit() {
-    return this.calculateProfit(this.saleValue);
+    const percentageSold = this.soldCoins / this.boughtCoins;
+    return this.calculateProfit(this.saleValue, percentageSold);
   }
 
   get unrealizedProfit() {
-    return this.calculateProfit(this.remainingCoinsCurrentValue);
+    if (this.remainingCoinsCurrentValue === 0) {
+      return 0;
+    }
+
+    return this.calculateProfit(this.remainingCoinsCurrentValue, this.remainingCoins / this.boughtCoins);
   }
 
-  calculateProfit(saleValue) {
+  calculateProfit(saleValue: number, soldPercentage = 1) {
     return this.state.order.direction === "LONG"
-      ? saleValue - this.spentAmountWithLev
-      : this.spentAmountWithLev - saleValue;
+      ? saleValue - (this.spentAmountWithLev * soldPercentage)
+      : (this.spentAmountWithLev * soldPercentage) - saleValue;
   }
 
   get profit() {
     return this.realizedProfit + this.unrealizedProfit;
+  }
+
+  get profitBasedOnSoldCoins() {
+    const saleValueWithCurrentValue = this.saleValue + this.remainingCoinsCurrentValue;
+
+    return this.state.order.direction === "LONG"
+      ? saleValueWithCurrentValue - this.spentAmountWithLev
+      : this.spentAmountWithLev - saleValueWithCurrentValue;
   }
 
   constructor(public readonly state: InternalState) {}

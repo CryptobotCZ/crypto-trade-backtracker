@@ -39,6 +39,7 @@ export interface BackTrackArgs {
   anonymize?: boolean;
   locale?: string;
   delimiter?: string;
+  cachePath?: string;
 }
 
 async function getFileContent<T>(path: string): Promise<T> {

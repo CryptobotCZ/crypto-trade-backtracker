@@ -85,6 +85,13 @@ const addDateRanges = (yargs: any) => {
     });
 };
 
+const addCachePath = (yargs: any) => {
+  yargs.option("cachePath", {
+    describe: "Path to cached candle data from Binance (or any compatible format)",
+    type: "string",
+  });
+};
+
 const addOutputFormattingArgs = (yargs: any) => {
   yargs.option('anonymize');
   yargs.option('locale', {
@@ -93,6 +100,10 @@ const addOutputFormattingArgs = (yargs: any) => {
   yargs.option('delimiter', {
     type: 'string'
   });
+};
+
+export const global = {
+  inputArguments: null,
 };
 
 yargs(Deno.args)
@@ -110,8 +121,10 @@ yargs(Deno.args)
       addFromDetailedLog(yargs);
       addDateRanges(yargs);
       addOutputFormattingArgs(yargs);
+      addCachePath(yargs);
     },
     async (argv: Arguments) => {
+      global.inputArguments = argv;
       await backtrackCommand(argv as any);
     },
   )

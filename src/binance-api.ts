@@ -1,6 +1,7 @@
 import * as fs from "https://deno.land/std@0.192.0/fs/mod.ts";
 import { writeJson } from "https://deno.land/x/jsonfile/mod.ts";
 import { sleep } from "https://deno.land/x/sleep/mod.ts";
+import {global} from "../main.ts";
 
 export interface TradeData {
   openTime: number;
@@ -67,6 +68,10 @@ enum TimeInterval {
   months1 = "1M",
 }
 
+function getCachePath() {
+  return global.inputArguments.cachePath ?? './cache/';
+}
+
 export async function loadDataFromCache(
   pair: string,
   interval: string,
@@ -74,7 +79,8 @@ export async function loadDataFromCache(
 ) {
   const dayStart = new Date(startTime.getTime()).setUTCHours(0, 0, 0, 0);
   const fileName = `${pair}_${interval}_${dayStart}.json`;
-  const fullPath = `./cache/${fileName}`;
+  const cacheDirectory = getCachePath();
+  const fullPath = `${cacheDirectory}/${fileName}`;
 
   const isReadableFile = await fs.exists(fullPath, {
     isReadable: true,
@@ -121,7 +127,9 @@ export async function getTradeDataWithCache(
   }
 
   const fileName = `${pair}_${interval}_${dayStart}.json`;
-  await writeJson(`./cache/${fileName}`, tradeData, { spaces: 2 });
+  const cacheDir = getCachePath();
+  const fullPath = `${cacheDir}/${fileName}`;
+  await writeJson(fullPath, tradeData, { spaces: 2 });
 
   return tradeData;
 }

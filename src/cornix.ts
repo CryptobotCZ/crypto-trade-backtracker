@@ -49,6 +49,7 @@ export interface CornixConfiguration {
   tps: Strategy;
   trailingStop: TrailingStop;
   trailingTakeProfit: number | "without";
+  maxLeverage?: number;
   sl?: {
     defaultStopLossPct?: number;
     automaticLeverageAdjustment?: boolean;

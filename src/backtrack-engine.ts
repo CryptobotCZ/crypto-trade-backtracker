@@ -512,6 +512,10 @@ class InitialState extends AbstractState {
       order.sl = (1 - slPct) * averageEntryPrice;
     }
 
+    if (cornixConfig?.maxLeverage != null && order.leverage != cornixConfig?.maxLeverage) {
+      order.leverage = cornixConfig?.maxLeverage;
+    }
+
     const state: InternalState = {
       allocatedAmount: order.amount ?? config.amount,
       tradeOpenTime: order.date, // new Date(order.timestamp),

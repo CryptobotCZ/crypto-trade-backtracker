@@ -35,6 +35,10 @@ export interface TradeResult {
   profit: number;
   hitSl: boolean;
   averageEntryPrice: number;
+  allocatedAmount: number;
+  spentAmount: number;
+  realizedProfit: number;
+  unrealizedProfit: number;
 }
 
 export type LogEvent = any & { type: string };
@@ -238,13 +242,22 @@ export abstract class AbstractState {
     return gainPct * 100;
   }
 
-  get profit() {
-    const saleValueWithCurrentValue = this.saleValue +
-      this.remainingCoinsCurrentValue;
+  get realizedProfit() {
+    return this.calculateProfit(this.saleValue);
+  }
 
+  get unrealizedProfit() {
+    return this.calculateProfit(this.remainingCoinsCurrentValue);
+  }
+
+  calculateProfit(saleValue) {
     return this.state.order.direction === "LONG"
-      ? saleValueWithCurrentValue - this.spentAmountWithLev
-      : this.spentAmountWithLev - saleValueWithCurrentValue;
+      ? saleValue - this.spentAmountWithLev
+      : this.spentAmountWithLev - saleValue;
+  }
+
+  get profit() {
+    return this.realizedProfit + this.unrealizedProfit;
   }
 
   constructor(public readonly state: InternalState) {}
@@ -437,6 +450,10 @@ export abstract class AbstractState {
       profit: this.profit,
       hitSl: this.state.sl != null,
       averageEntryPrice: this.averageEntryPrice,
+      allocatedAmount: this.allocatedAmount,
+      spentAmount: this.spentAmount,
+      realizedProfit: this.realizedProfit,
+      unrealizedProfit: this.unrealizedProfit,
     };
   }
 
@@ -515,6 +532,8 @@ class InitialState extends AbstractState {
     if (cornixConfig?.maxLeverage != null && order.leverage != cornixConfig?.maxLeverage) {
       order.leverage = cornixConfig?.maxLeverage;
     }
+
+    logger.verbose({ type: "info", subType: "config", values: cornixConfig });
 
     const state: InternalState = {
       allocatedAmount: order.amount ?? config.amount,

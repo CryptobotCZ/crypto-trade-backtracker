@@ -123,7 +123,7 @@ export async function getTradeDataWithCache(
   const tradeData = await getTradeData(pair, interval, startTime);
 
   if (tradeData.length < 1441) {
-    return [];
+    return tradeData;
   }
 
   const fileName = `${pair}_${interval}_${dayStart}.json`;

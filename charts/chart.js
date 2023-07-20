@@ -1,6 +1,100 @@
-﻿import data from './input-data.json' assert { type: 'json' };
+﻿import { LitElement, html } from 'https://cdn.jsdelivr.net/gh/lit/dist@2/core/lit-core.min.js';
 
-console.log(data);
+export class TradeInfo extends LitElement {
+    static get properties() {
+        return { 
+            trade: { type: Object }
+        };
+    }
+
+    render() {
+        const trade = this.trade;
+
+        return html`
+            <div>
+                <strong>Coin ${trade?.order?.coin}</strong>
+                <p>Entries: ${trade?.order?.entries?.join(', ')}</p>
+                <p>TPs: ${trade?.order?.tps?.join(', ')}</p>
+                <p>SL: ${trade?.order?.sl}</p>
+            </div>
+        `;
+    }
+}
+customElements.define('trade-info', TradeInfo);
+const tradeInfo = document.createElement('trade-info');
+
+export class TradeList extends LitElement {
+    static get properties() {
+        return {
+            trades: { type: Array }
+        };
+    }
+
+    render() {
+        const getListItem = (trade, index) => ({ label: `${trade.order.coin} - ${trade.order.date.toLocaleString()}`, value: trade });
+        const items = this.trades.map(getListItem);
+
+        return html`
+            <select @change="${this.selectTrade}">
+                <option default="">--</option>
+                ${this.trades.map((trade, index) => html`<option value="${index}">${trade.order.coin} - ${trade.order.date.toLocaleString()}</option>`)}
+            </select>
+            <goat-select @goat:change="${this.selectTradeFromEvent}" .items="${items}" id="search-selected" placeholder="Search" search="contains" style="width: 20rem"></goat-select>
+        `; // 
+
+    }
+
+    async selectTradeFromEvent(event) {
+        console.log(event);
+        await drawTrade(event.detail.newItem.value);
+    }
+
+    async selectTrade(event) {
+        const trade = this.trades[event.target.value];
+        console.log(trade);
+        await drawTrade(trade);
+        tradeInfo.trade = trade;
+    }
+}
+customElements.define('trade-list', TradeList);
+
+const tradeSelector = document.createElement('trade-list');
+tradeSelector.trades = [];
+
+export class FilesList extends LitElement {
+    static get properties() {
+        return {
+            files: { type: Array }
+        };
+    }
+
+    render() {
+        return html`
+            <select @change="${this.selectFile}">
+                <option default="">--</option>
+                ${this.files.map((file, index) => html`<option value="${index}">${file}</option>`)}
+            </select>
+        `;
+    }
+
+    async selectFile(event) {
+        const file = this.files[event.target.value];
+        const tradesResponse = await fetch(`/files/${file}`);
+        const trades = await tradesResponse.json();
+        tradeSelector.trades = trades;
+    }
+}
+
+customElements.define('file-list', FilesList);
+
+const fileList = document.createElement('file-list');
+const filesResponse = await fetch('/files');
+const files = await filesResponse.json();
+fileList.files = files;
+
+document.body.append(tradeInfo);
+document.body.append(fileList);
+document.body.append(tradeSelector);
 
 const graph = document.createElement('div');
 graph.setAttribute('id', 'graph');
@@ -69,10 +163,6 @@ series.applyOptions({
     },
 });
 
-var setChartData = (data) => {
-    series.setData(data);
-}
-
 function formatChartData(data) {
     return data.map(elem => ({
         time: elem[0] / 1000,
@@ -83,11 +173,13 @@ function formatChartData(data) {
     }));
 }
 
-function createChartMarker(time, type) {
-    if (type === 'buy') {
-        return { time: time, position: 'belowBar', color: '#2196F3', shape: 'arrowUp', text: 'Buy' };
+function createChartMarker(time, type, text) {
+    if (type === 'buy' || type === 'open') {
+        return { time: time, position: 'belowBar', color: '#2196F3', shape: 'arrowUp', text };
+    } else if (type === 'sell') {
+        return { time: time, position: 'aboveBar', color: '#e91e63', shape: 'arrowDown', text };
     } else {
-        return { time: time, position: 'aboveBar', color: '#e91e63', shape: 'arrowDown', text: 'Sell' };
+        return { time: time, position: 'aboveBar', color: '#c500ff', shape: 'circle', text };
     }
 }
 
@@ -169,15 +261,28 @@ function addSmaLines(fromattedData) {
     smaLine99.setData(smaData99);
 }
 
+const priceLines = [];
+
+function addPriceLine(priceLineData) {
+    const priceLine = series.createPriceLine(priceLineData);
+    priceLines.push(priceLine);
+}
+
+function clearPriceLines() {
+    priceLines.forEach(priceLine => series.removePriceLine(priceLine));
+}
+
 async function drawTrade(trade) {
+    clearPriceLines();
+
     const openTime = new Date(trade.info.openTime);
     const closeTime = new Date(trade.info.closeTime ?? undefined);
 
     // adjust interval based on difference between open and close time
-    
-    const data = await getChartData(openTime, trade.order.coin, '1d');
-    setChartData(data);
-    // setChartTradeMarkers(strategy.getHistory());
+    const openTimeUTC = openTime.getTime(); // .getUTCDate();
+
+    const data = await getChartData(openTimeUTC, trade.order.coin, '1h');
+    series.setData(data);
 
     trade.order.entries.forEach((entry, idx) => {
         const entryPriceLine = {
@@ -187,9 +292,10 @@ async function drawTrade(trade) {
             lineStyle: 2, // LineStyle.Dashed
             axisLabelVisible: true,
             title: `Entry ${idx + 1}`,
+            autoscaleInfoProvider: () => (globalScaler),
         };
 
-        series.createPriceLine(entryPriceLine);
+        addPriceLine(entryPriceLine);
     });
 
     const buyPriceLine = {
@@ -199,9 +305,10 @@ async function drawTrade(trade) {
         lineStyle: 2, // LineStyle.Dashed
         axisLabelVisible: true,
         title: 'Average entry price',
+        autoscaleInfoProvider: () => (globalScaler),
     };
 
-    series.createPriceLine(buyPriceLine);
+    addPriceLine(buyPriceLine);
 
     trade.order.tps.forEach((tp, idx) => {
         const tpPriceLine = {
@@ -211,11 +318,12 @@ async function drawTrade(trade) {
             lineStyle: 2, // LineStyle.Dashed
             axisLabelVisible: true,
             title: `TP ${idx + 1}`,
+            autoscaleInfoProvider: () => (globalScaler),
         };
 
-        series.createPriceLine(tpPriceLine);
+        addPriceLine(tpPriceLine);
     });
-    
+
     if (trade.order.sl) {
         const slPriceLine = {
             price: trade.order.sl,
@@ -224,17 +332,26 @@ async function drawTrade(trade) {
             lineStyle: 2, // LineStyle.Dashed
             axisLabelVisible: true,
             title: 'SL',
+            autoscaleInfoProvider: () => (globalScaler),
         };
 
-        series.createPriceLine(slPriceLine);
+        addPriceLine(slPriceLine);
     }
 
-    const markers = trade.sortedUniqueCrosses.map(cross => {
-        return createChartMarker(cross.timestamp / 1000, cross.subtype === 'averageEntry' || cross.subtype === 'entry' ? 'buy' : 'sell');
+    const crossMarkers = trade.sortedUniqueCrosses.map(cross => {
+        return createChartMarker(
+            cross.timestamp / 1000, 
+            cross.subtype === 'averageEntry' || cross.subtype === 'entry' ? 'buy' : 'sell', 
+            `Cross ${cross.subtype}`
+        );
     });
-    series.setMarkers(markers);
-}
 
-if (data?.length > 0){
-    await drawTrade(data[4]);
+    const eventMarkers = (crossMarkers.length === 0) 
+        ? trade.events.filter(x => x.type?.match(/sell|sl|trailing activated|buy/))
+            .map(x => createChartMarker(x.timestamp / 1000, x.type?.match(/buy/) ? 'buy' : 'sell'))
+        : [];
+
+    const tradeOpenMarker = createChartMarker(new Date(trade.order.date) / 1000, 'open');
+
+    series.setMarkers([ tradeOpenMarker, ...eventMarkers, ...crossMarkers ]);
 }

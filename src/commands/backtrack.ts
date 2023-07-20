@@ -335,6 +335,9 @@ export async function backtrackCommand(args: BackTrackArgs) {
       delimiter: args.delimiter,
       locale: args.locale,
     });
+  } else if (args.outputPath?.indexOf(".json") !== -1) {
+    const fileName = args.outputPath ?? `backtrack-results-${Date.now()}.json`;
+    await writeJson(fileName, ordersWithResults, { spaces: 2 });
   }
 }
 

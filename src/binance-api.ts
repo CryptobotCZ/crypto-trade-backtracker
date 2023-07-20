@@ -147,10 +147,13 @@ export async function getTradeData(
 ) {
   const time = performance.measure("request");
 
-  if (!isFirstRun && time?.duration < 5000) {
-    console.log(time?.duration);
-    console.log("Sleeping to prevent flooding the binance API");
-    await sleep(5);
+  // default rate limit per IP is 2,400/min
+  // costs of 1 file with 1441 records is 10
+  // rate limit = 4 requests per second = 1 each 250ms.
+  // better be safe then sorry, use 750ms interval between requests. 
+  if (!isFirstRun && time?.duration < 750) {
+    console.log(`Interval between requests too low (${time?.duration}), sleeping to prevent flooding the binance API`);
+    await sleep(1);
   }
 
   isFirstRun = false;

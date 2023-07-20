@@ -7,6 +7,10 @@ Example how to run:
 
 Optimally use it with [crypto-signals-analysis](../crypto-signals-analysis)
 
+## Running charts server
+
+`deno run --allow-read --allow-net charts/server.ts --port 8080 /absolute/path/to/results/dir`
+
 ## Example workflow
 
 1. Open the signal group telegram channel (if it has separate cornix channel like Binance Killers have, prefer the cornix channel)
@@ -24,7 +28,3 @@ Optimally use it with [crypto-signals-analysis](../crypto-signals-analysis)
 - Just show the values: `deno run --allow-all main.ts backtrack --downloadBinanceData data/test-order-eth.json`
 - Show the values and collect detailed log data: `deno run --allow-all main.ts backtrack --detailedLog --downloadBinanceData --outputPath backtrack-intermediate-result-eth.json data/test-order-eth.json`
 - Get the csv report:  `deno run --allow-all main.ts backtrack --fromDetailedLog  --outputPath final-report-eth.csv --delimiter ";" backtrack-intermediate-result-eth.json`
-
-## Known bugs
-
-- There is a bug in parsing data from `--fromDetailedLog` when trailing is activated. It doesn't give expected values.

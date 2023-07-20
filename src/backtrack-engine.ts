@@ -286,6 +286,7 @@ export abstract class AbstractState {
       this.state.logger.verbose({
         type: "info",
         text,
+        level: 'verbose',
         orderTime: tradeOpenTime,
         candleTime: tradeData.openTime,
       });

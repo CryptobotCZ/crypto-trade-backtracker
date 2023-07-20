@@ -201,7 +201,9 @@ export async function backtrackCommand(args: BackTrackArgs) {
       }
 
       if (args.debug) {
-        result.events.forEach((event) => console.log(JSON.stringify(event)));
+        const eventsWithoutCross = result.events.filter(x => x.type !== 'cross')
+          .map(x => ({...x, date: new Date(x.timestamp)}));
+        eventsWithoutCross.forEach((event) => console.log(JSON.stringify(event)));
       }
 
       const results = result?.state?.info;
@@ -238,7 +240,11 @@ export async function backtrackCommand(args: BackTrackArgs) {
 
         sortedUniqueCrosses = Object.keys(uniqueCrosses)
           .map((x) => uniqueCrosses[x])
-          .toSorted((a, b) => a.timestamp - b.timestamp);
+          .toSorted((a, b) => a.timestamp - b.timestamp)
+          .map(x => ({
+            ...x,
+            date: new Date(x.timestamp)
+          }));
       }
 
       if (result != null) {
@@ -251,6 +257,7 @@ export async function backtrackCommand(args: BackTrackArgs) {
 
             return cloneOfX;
           }),
+          events: result.events.filter(x => x.level !== 'verbose'),
           tradeData: sortedUniqueCrosses.map((x) => x.tradeData),
         });
       }

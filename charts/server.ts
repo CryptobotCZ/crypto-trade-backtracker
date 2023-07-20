@@ -18,7 +18,6 @@ async function getFilesFromDirectory(input) {
       isDirectory: true,
     });
 
-    // TODO:
     const isReadableFile = await fs.exists(path, {
       isReadable: true,
       isFile: true,
@@ -31,6 +30,10 @@ async function getFilesFromDirectory(input) {
           files.push(dirEntry.name);
         }
       }
+    } else if (isReadableFile) {
+      const fileNameParts = path.split(/[\/\\]/);
+      const justFileName = fileNameParts.at(-1);
+      files.push(justFileName);
     }
   }
 
@@ -122,7 +125,7 @@ const global = { inputArguments: null } as any;
 
 yargs(Deno.args)
   .command(
-    "start",
+    "start <orderFiles...>",
     "Start chart server",
     (yargs: any) => {
       addPort(yargs);

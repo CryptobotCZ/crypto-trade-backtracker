@@ -35,23 +35,16 @@ export class TradeList extends LitElement {
         const items = this.trades.map(getListItem);
 
         return html`
-            <select @change="${this.selectTrade}">
-                <option default="">--</option>
-                ${this.trades.map((trade, index) => html`<option value="${index}">${trade.order.coin} - ${trade.order.date.toLocaleString()}</option>`)}
-            </select>
             <goat-select @goat:change="${this.selectTradeFromEvent}" .items="${items}" id="search-selected" placeholder="Search" search="contains" style="width: 20rem"></goat-select>
-        `; // 
-
+        `;
     }
 
     async selectTradeFromEvent(event) {
-        console.log(event);
-        await drawTrade(event.detail.newItem.value);
+        const trade = event.detail.newItem.value;
+        await this.selectTrade(trade);
     }
 
-    async selectTrade(event) {
-        const trade = this.trades[event.target.value];
-        console.log(trade);
+    async selectTrade(trade) {
         await drawTrade(trade);
         tradeInfo.trade = trade;
     }
@@ -69,16 +62,16 @@ export class FilesList extends LitElement {
     }
 
     render() {
+        const getListItem = (file, index) => ({ label: file, value: file });
+        const items = this.files.map(getListItem);
+
         return html`
-            <select @change="${this.selectFile}">
-                <option default="">--</option>
-                ${this.files.map((file, index) => html`<option value="${index}">${file}</option>`)}
-            </select>
+            <goat-select @goat:change="${this.selectFile}" .items="${items}" placeholder="Search" search="contains" style="width: 20rem"></goat-select>
         `;
     }
 
     async selectFile(event) {
-        const file = this.files[event.target.value];
+        const file = event.detail.newItem.value;
         const tradesResponse = await fetch(`/files/${file}`);
         const trades = await tradesResponse.json();
         tradeSelector.trades = trades;
@@ -341,17 +334,20 @@ async function drawTrade(trade) {
     const crossMarkers = trade.sortedUniqueCrosses.map(cross => {
         return createChartMarker(
             cross.timestamp / 1000, 
-            cross.subtype === 'averageEntry' || cross.subtype === 'entry' ? 'buy' : 'sell', 
+            'cross', 
             `Cross ${cross.subtype}`
         );
     });
 
     const eventMarkers = (crossMarkers.length === 0) 
         ? trade.events.filter(x => x.type?.match(/sell|sl|trailing activated|buy/))
-            .map(x => createChartMarker(x.timestamp / 1000, x.type?.match(/buy/) ? 'buy' : 'sell'))
+            .map(x => {
+                const type = x.type?.match(/buy/) ? 'buy' : 'sell';
+                return createChartMarker(x.timestamp / 1000, type, type);
+            })
         : [];
 
-    const tradeOpenMarker = createChartMarker(new Date(trade.order.date) / 1000, 'open');
+    const tradeOpenMarker = createChartMarker(new Date(trade.order.date) / 1000, 'open', 'open');
 
     series.setMarkers([ tradeOpenMarker, ...eventMarkers, ...crossMarkers ]);
 }

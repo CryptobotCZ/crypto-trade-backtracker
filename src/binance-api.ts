@@ -1,7 +1,8 @@
 import * as fs from "https://deno.land/std@0.192.0/fs/mod.ts";
 import { writeJson } from "https://deno.land/x/jsonfile/mod.ts";
 import { sleep } from "https://deno.land/x/sleep/mod.ts";
-import {  global } from "./globals.ts";
+import { global } from "./globals.ts";
+import { dirname } from "https://deno.land/std@0.192.0/path/mod.ts";
 
 export interface TradeData {
   openTime: number;
@@ -72,15 +73,22 @@ function getCachePath() {
   return global.inputArguments?.cachePath ?? './cache/';
 }
 
+function getSingleCacheFilePath(pair: string, interval: string, timestamp: number) {
+  const cacheDirectory = getCachePath();
+  const fileName = `${pair}_${interval}_${timestamp}.json`;
+  const nestedPath = `${interval}/${pair}/${fileName}`;
+  const fullPath = `${cacheDirectory}/${nestedPath}`;
+
+  return fullPath;
+}
+
 export async function loadDataFromCache(
   pair: string,
   interval: string,
   startTime: Date,
 ) {
   const dayStart = new Date(startTime.getTime()).setUTCHours(0, 0, 0, 0);
-  const fileName = `${pair}_${interval}_${dayStart}.json`;
-  const cacheDirectory = getCachePath();
-  const fullPath = `${cacheDirectory}/${fileName}`;
+  const fullPath = getSingleCacheFilePath(pair, interval, dayStart);
 
   const isReadableFile = await fs.exists(fullPath, {
     isReadable: true,
@@ -126,12 +134,10 @@ export async function getTradeDataWithCache(
     return tradeData;
   }
 
-  const fileName = `${pair}_${interval}_${dayStart}.json`;
-  const cacheDir = getCachePath();
-
+  const fullPath = getSingleCacheFilePath(pair, interval, dayStart);
+  const cacheDir = dirname(fullPath);
   await fs.ensureDir(cacheDir);
 
-  const fullPath = `${cacheDir}/${fileName}`;
   await writeJson(fullPath, tradeData, { spaces: 2 });
 
   return tradeData;

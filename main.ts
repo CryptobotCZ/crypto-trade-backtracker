@@ -4,7 +4,8 @@ import {
   backtrackCommand,
   defaultCornixConfig,
 } from "./src/commands/backtrack.ts";
-import {  global } from "./src/globals.ts";
+import { global } from "./src/globals.ts";
+import { updateCacheStructure } from "./src/commands/update-cache.ts";
 
 const addInputFilesArg = (yargs: any) => {
   yargs.positional("orderFiles", {
@@ -134,6 +135,12 @@ yargs(Deno.args)
       console.log(JSON.stringify(defaultCornixConfig));
     },
   )
+    .command('update-cache', 'Updates cache structure', (yargs) => {
+        addCachePath(yargs);
+    }, async (argv) => {
+        console.log("Updating cache structure...");
+        await updateCacheStructure(argv.cachePath);
+    })
   .strictCommands()
   .demandCommand(1)
   .version("version", "0.0.1").alias("version", "V")

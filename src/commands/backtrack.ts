@@ -198,7 +198,7 @@ export async function backtrackCommand(args: BackTrackArgs) {
       );
 
       if (args.debug) {
-        console.trace(`It took ${time.duration}ms`);
+        console.log(`It took ${time.duration}ms`);
       }
 
       if (args.debug) {
@@ -219,7 +219,7 @@ export async function backtrackCommand(args: BackTrackArgs) {
       console.log(`Profit: ${results.profit?.toFixed(2)}`);
       console.log(`Hit SL: ${results.hitSl}`);
       console.log(
-        `Average entry price: ${results.averageEntryPrice.toFixed(2)}`,
+        `Average entry price: ${results.averageEntryPrice.toFixed(6)}`,
       );
       console.log("---------------------------------------");
 
@@ -271,7 +271,7 @@ export async function backtrackCommand(args: BackTrackArgs) {
     count++;
 
     if (args.debug) {
-      console.trace(
+      console.log(
         `Progress: ${count} / ${orders.length} = ${
           (count / orders.length * 100).toFixed(2)
         }%`,

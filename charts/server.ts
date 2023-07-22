@@ -1,13 +1,12 @@
 ﻿// due to CORS policies in browsers, it is difficult to import local files, so server is needed
-import { serve } from "https://deno.land/std/http/mod.ts";
-import { lookup } from "https://deno.land/x/media_types/mod.ts";
-import yargs from "https://deno.land/x/yargs/deno.ts";
-import { Arguments } from "https://deno.land/x/yargs/deno-types.ts";
+import { serve } from "https://deno.land/std@0.194.0/http/mod.ts";
+import { lookup } from "https://deno.land/x/media_types@deprecated/mod.ts";
+import yargs from "https://deno.land/x/yargs@v17.7.2-deno/deno.ts";
+import { Arguments } from "https://deno.land/x/yargs@v17.7.2-deno/deno-types.ts";
 import * as fs from "https://deno.land/std@0.192.0/fs/mod.ts";
+import * as path from "https://deno.land/std@0.188.0/path/mod.ts";
 
-const BASE_PATH = ".";
-
-async function getFilesFromDirectory(input) {
+async function getFilesFromDirectory(input: string|string[]) {
   const inputPaths = Array.isArray(input) ? input : [input];
 
   const files = [];
@@ -40,7 +39,7 @@ async function getFilesFromDirectory(input) {
   return files;
 }
 
-async function readFile(fileName) {
+async function readFile(fileName: string) {
   const path = `${global.inputArguments.orderFiles}/${fileName}`;
 
   const isReadableFile = await fs.exists(path, {
@@ -59,11 +58,12 @@ async function readFile(fileName) {
 }
 
 const reqHandler = async (req: Request) => {
+  const __dirname = path.dirname(path.fromFileUrl(import.meta.url));
   const urlPathName = new URL(req.url).pathname;
-  let filePath = BASE_PATH + urlPathName;
+  let filePath = path.join(__dirname, urlPathName);
 
-  if (filePath === "/" || filePath === "" || filePath === "./") {
-    filePath = "index.html";
+  if (urlPathName === "/" || urlPathName === "") {
+    filePath = path.join(__dirname, "index.html");
   }
 
   if (urlPathName.match(/files\/?/)) {
@@ -81,7 +81,7 @@ const reqHandler = async (req: Request) => {
 
     return new Response(json, {
       headers: {
-        "content-length": json.length.toString(),
+        "content-length": json?.length?.toString(),
         "content-type": "application/json",
       },
     });

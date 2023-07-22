@@ -343,7 +343,7 @@ async function drawTrade(trade) {
         ? trade.events.filter(x => x.type?.match(/sell|sl|trailing activated|buy/))
             .map(x => {
                 const type = x.type?.match(/buy/) ? 'buy' : 'sell';
-                return createChartMarker(x.timestamp / 1000, type, type);
+                return createChartMarker(x.timestamp / 1000, type, x.type);
             })
         : [];
 

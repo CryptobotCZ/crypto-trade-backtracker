@@ -794,6 +794,8 @@ class TakeProfitReachedState extends EntryPointReachedState {
       } else {
         newSl = parentState.state.order.tps[tp.entry - 1 - 1]; //activatedTakeProfits[activatedTakeProfits.length - 1 ].price;
       }
+
+      parentState.state.logger.log({ type: 'sl moved', sl: newSl });
     }
 
     const newState: InternalState = {

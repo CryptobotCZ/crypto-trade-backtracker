@@ -51,6 +51,12 @@ const addDebugParam = (yargs: any) => {
     type: "boolean",
     default: false,
   });
+
+yargs.option("verbose", {
+    describe: "Debug",
+    type: "boolean",
+    default: false,
+});
 };
 
 const addDetailedLog = (yargs: any) => {

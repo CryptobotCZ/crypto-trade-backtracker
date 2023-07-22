@@ -30,6 +30,7 @@ export interface BackTrackArgs {
   candlesFiles?: string[];
   downloadBinanceData?: boolean;
   debug?: boolean;
+  verbose?: boolean;
   detailedLog?: boolean;
   fromDetailedLog?: boolean;
   fromDate?: string;
@@ -201,8 +202,10 @@ export async function backtrackCommand(args: BackTrackArgs) {
       }
 
       if (args.debug) {
-        const eventsWithoutCross = result.events.filter(x => x.type !== 'cross')
-          .map(x => ({...x, date: new Date(x.timestamp)}));
+        const eventsWithoutCross = result.events
+            .filter(x => x.type !== 'cross')
+            .filter(x => x.level !== 'verbose' || args.verbose)
+            .map(x => ({...x, date: new Date(x.timestamp)}));
         eventsWithoutCross.forEach((event) => console.log(JSON.stringify(event)));
       }
 

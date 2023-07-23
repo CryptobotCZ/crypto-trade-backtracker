@@ -134,6 +134,7 @@ export async function backtrackCommand(args: BackTrackArgs) {
         ...x,
         order: {
           ...x.order,
+          direction: x.order.direction?.toUpperCase(),
           date: x.order.date != null
             ? new Date(x.order.date)
             : new Date(Date.now()),

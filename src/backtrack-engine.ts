@@ -390,6 +390,16 @@ export abstract class AbstractState {
           subtype: "sl",
         });
       }
+
+      if (this.matchesStopEvent(tradeData)) {
+        this.state.logger.log({
+          type: "cross",
+          subtype: "cancel",
+          price: tradeData.open,
+          timestamp: tradeData.openTime,
+          tradeData,
+        });
+      }
     }
   }
 

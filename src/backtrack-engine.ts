@@ -7,6 +7,11 @@ import {
   PriceTargetWithPrice,
 } from "./cornix.ts";
 
+export interface OrderEvent {
+  type: string;
+  date: Date;
+}
+
 export interface Order {
   amount?: number;
   coin: string;
@@ -17,6 +22,7 @@ export interface Order {
   tps: number[];
   sl: number;
   direction?: "SHORT" | "LONG";
+  events?: OrderEvent[];
 }
 
 export interface BackTrackingConfig {
@@ -29,6 +35,7 @@ export interface TradeResult {
   openTime: Date;
   closeTime: Date | null;
   isClosed: boolean;
+  isCancelled: boolean;
   isProfitable: boolean;
   pnl: number;
   profit: number;
@@ -150,6 +157,7 @@ type InternalState = {
   entries: DetailedEntry[];
   takeProfits: DetailedEntry[];
   sl: DetailedEntry | null;
+  cancelled?: boolean;
 
   currentSl: number | null;
 
@@ -297,7 +305,9 @@ export abstract class AbstractState {
       this.logPriceIfNeeded(tradeData);
     }
 
-    if (this.matchesEntryPrice(tradeData)) {
+    if (this.matchesStopEvent(tradeData)) {
+      return this.hitCloseEvent(tradeData);
+    } else if (this.matchesEntryPrice(tradeData)) {
       return this.hitEntryPoint(tradeData);
     } else if (this.matchesTakeProfitPrice(tradeData)) {
       return this.hitTp(tradeData);
@@ -306,6 +316,17 @@ export abstract class AbstractState {
     }
 
     return this;
+  }
+
+  hitCloseEvent(tradeData: TradeData) {
+    return new CancelledState(this, tradeData);
+  }
+
+  matchesStopEvent(tradeData: TradeData) {
+    const events = this.state.order.events ?? [];
+    const matchingEvents = events.filter(x => x.date.getTime() < tradeData.openTime);
+
+    return (matchingEvents.some(event => event.type === 'cancelled' || event.type === 'close' || event.type === 'opposite'));
   }
 
   crossedPrice(
@@ -458,10 +479,11 @@ export abstract class AbstractState {
       openTime: this.state.tradeOpenTime,
       closeTime: this.state.tradeCloseTime,
       isClosed: this.state.tradeCloseTime != null,
+      isCancelled: this.state.cancelled == true,
       isProfitable: this.pnl > 0,
       pnl: this.pnl,
       profit: this.profit,
-      hitSl: this.state.sl != null,
+      hitSl: this.state.sl != null && !this.state.cancelled,
       averageEntryPrice: this.averageEntryPrice,
       allocatedAmount: this.allocatedAmount,
       spentAmount: this.spentAmount,
@@ -892,6 +914,37 @@ class StopLossReachedState extends AbstractState {
 
 class StopLossAfterTakeProfitState extends StopLossReachedState {
   // boring state
+}
+
+class CancelledState extends AbstractState {
+  constructor(previousState: AbstractState, tradeData: TradeData) {
+    const closeTime = new Date(tradeData.openTime);
+    const price = tradeData.open;
+    const soldCoins = previousState.remainingCoins;
+    const total = soldCoins * price;
+
+    previousState.state.logger.log({
+      type: "cancelled",
+      price: price,
+      total: total,
+      sold: soldCoins,
+      timestamp: tradeData.openTime,
+    });
+
+    const newState: InternalState = {
+      ...previousState.state,
+      tradeCloseTime: closeTime,
+      sl: {
+        coins: soldCoins,
+        price: price,
+        entry: -1,
+        total: total,
+        date: closeTime,
+      },
+      cancelled: true,
+    };
+    super(newState);
+  }
 }
 
 /**

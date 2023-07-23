@@ -125,6 +125,11 @@ export async function backtrackCommand(args: BackTrackArgs) {
       }));
 
     return rawData.map((x) => {
+      const events = x.order.events.map(event => ({
+        ...event,
+        date: new Date(event.date),
+      }));
+
       return {
         ...x,
         order: {
@@ -132,6 +137,7 @@ export async function backtrackCommand(args: BackTrackArgs) {
           date: x.order.date != null
             ? new Date(x.order.date)
             : new Date(Date.now()),
+          events,
         },
       };
     });
@@ -214,6 +220,7 @@ export async function backtrackCommand(args: BackTrackArgs) {
       console.log(`Open time: ${results.openTime}`);
       console.log(`Close time: ${results.closeTime}`);
       console.log(`Is closed: ${results.isClosed}`);
+      console.log(`Is cancelled: ${results.isCancelled}`);
       console.log(`Is profitable: ${results.isProfitable}`);
       console.log(`PnL: ${results.pnl?.toFixed(2)}%`);
       console.log(`Profit: ${results.profit?.toFixed(2)}`);
@@ -292,6 +299,9 @@ export async function backtrackCommand(args: BackTrackArgs) {
     sum.countProfitable += curr.info.isProfitable ? 1 : 0;
     sum.countSL += (curr.info.hitSl && !curr.info.isProfitable) ? 1 : 0;
     sum.countSlAfterTp += (curr.info.hitSl && curr.info.isProfitable) ? 1 : 0;
+    sum.countCancelled += curr.info.isCancelled ? 1 : 0;
+    sum.countCancelledProfitable += (curr.info.isCancelled && curr.info.isProfitable) ? 1 : 0;
+    sum.countCancelledInLoss += (curr.info.isCancelled && !curr.info.isProfitable) ? 1 : 0;
     sum.totalReachedTps += curr.info.reachedTps;
 
     sum.averageReachedTps = sum.totalReachedTps / sum.countOrders;
@@ -304,6 +314,9 @@ export async function backtrackCommand(args: BackTrackArgs) {
     countOrders: 0,
     countProfitable: 0,
     countSL: 0,
+    countCancelled: 0,
+    countCancelledProfitable: 0,
+    countCancelledInLoss: 0,
     countSlAfterTp: 0,
     countFullTp: 0,
     totalPnl: 0,
@@ -320,6 +333,9 @@ export async function backtrackCommand(args: BackTrackArgs) {
   console.log(`Count Profitable: ${summary.countProfitable}`);
   console.log(`Count SL: ${summary.countSL}`);
   console.log(`Count SL after TP: ${summary.countSlAfterTp}`);
+  console.log(`Count Cancelled: ${summary.countCancelled}`);
+  console.log(`Count Cancelled profitable: ${summary.countCancelledProfitable}`);
+  console.log(`Count Cancelled in loss: ${summary.countCancelledInLoss}`);
   console.log(`Count hit all TPs: ${summary.countFullTp}`);
   console.log(`Total PnL: ${summary.totalPnl.toFixed(2)}%`);
   console.log(`PnL of profitable trades: ${summary.positivePnl.toFixed(2)}`);

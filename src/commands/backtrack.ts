@@ -125,10 +125,10 @@ export async function backtrackCommand(args: BackTrackArgs) {
       }));
 
     return rawData.map((x) => {
-      const events = x.order.events.map(event => ({
+      const events = x.order?.events?.map(event => ({
         ...event,
         date: new Date(event.date),
-      }));
+      })) ?? [];
 
       return {
         ...x,

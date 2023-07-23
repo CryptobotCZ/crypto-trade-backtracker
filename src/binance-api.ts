@@ -127,7 +127,7 @@ export async function getTradeDataWithCache(
     return dataFromCache.length < 1441 ? [] : dataFromCache;
   }
 
-  const dayStart = new Date(startTime.getTime()).setUTCHours(0, 0, 0, 0);
+  const dayStart = new Date(startDate.getTime()).setUTCHours(0, 0, 0, 0);
   const tradeData = await getTradeData(pair, interval, startTime);
 
   if (tradeData.length < 1441) {

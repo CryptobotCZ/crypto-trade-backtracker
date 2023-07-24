@@ -372,7 +372,7 @@ export abstract class AbstractState {
   }
 
   logPriceIfNeeded(tradeData: TradeData) {
-    if (this.isOpen || this.matchesEntryPrice(tradeData)) {
+    if (this.isOpen || this.matchesEntryPrice(tradeData) || this.matchesTakeProfitPrice(tradeData)) {
       const entries = this.state.order.entries;
       entries.forEach((entry, index) => {
         this.logIfMatchesImportantPrice(tradeData, entry, {
@@ -406,6 +406,16 @@ export abstract class AbstractState {
           price: tradeData.open,
           timestamp: tradeData.openTime,
           tradeData,
+        });
+      }
+
+      if (!this.isOpen && this.matchesTakeProfitPrice(tradeData)) {
+        this.state.logger.log({
+          type: "cross",
+          subtype: "tpBeforeEntry",
+          price: tradeData.open,
+          timestamp: tradeData.openTime,
+          tradeData
         });
       }
     }

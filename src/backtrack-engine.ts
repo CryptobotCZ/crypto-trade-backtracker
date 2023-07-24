@@ -679,7 +679,6 @@ class EntryPointReachedState extends AbstractState {
 
   shouldTrailingUpdatePrice(tradeData: TradeData) {
     const price = this.getPriceForTp(tradeData);
-    return price > this.currentTrailingReferencePrice;
 
     return this.state.order.direction === "LONG"
       ? price > this.currentTrailingReferencePrice

@@ -3,6 +3,7 @@ import { writeJson } from "https://deno.land/x/jsonfile/mod.ts";
 import { sleep } from "https://deno.land/x/sleep/mod.ts";
 import { global } from "./globals.ts";
 import { dirname } from "https://deno.land/std@0.192.0/path/mod.ts";
+import * as path from "https://deno.land/std/path/mod.ts";
 
 export interface TradeData {
   openTime: number;
@@ -70,7 +71,7 @@ enum TimeInterval {
 }
 
 function getCachePath() {
-  return global.inputArguments?.cachePath ?? './cache/';
+  return global.inputArguments?.cachePath ?? './cache';
 }
 
 function getSingleCacheFilePath(pair: string, interval: string, timestamp: number) {
@@ -134,7 +135,7 @@ export async function getTradeDataWithCache(
     return tradeData;
   }
 
-  const fullPath = getSingleCacheFilePath(pair, interval, dayStart);
+  const fullPath = path.resolve(getSingleCacheFilePath(pair, interval, dayStart));
   const cacheDir = dirname(fullPath);
   await fs.ensureDir(cacheDir);
 

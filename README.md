@@ -28,3 +28,10 @@ Optimally use it with [crypto-signals-analysis](../crypto-signals-analysis)
 - Just show the values: `deno run --allow-all main.ts backtrack --downloadBinanceData data/test-order-eth.json`
 - Show the values and collect detailed log data: `deno run --allow-all main.ts backtrack --detailedLog --downloadBinanceData --outputPath backtrack-intermediate-result-eth.json data/test-order-eth.json`
 - Get the csv report:  `deno run --allow-all main.ts backtrack --fromDetailedLog  --outputPath final-report-eth.csv --delimiter ";" backtrack-intermediate-result-eth.json`
+
+## Versioning
+
+```text
+npx semantic-version --preMajor
+npx semantic-version
+```

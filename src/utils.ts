@@ -1,6 +1,10 @@
 ﻿export function getDateFromTimestampOrDateStr(date: number|string) {
-    if (typeof date === "number") {
-        return new Date(parseInt(date));
+  const timestamp = typeof date === 'string' 
+    ? parseInt(date)
+    : date;
+
+    if (!isNaN(timestamp)) {
+        return new Date(timestamp);
     } else {
         return new Date(date);
     }

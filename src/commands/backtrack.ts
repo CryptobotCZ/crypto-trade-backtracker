@@ -1,4 +1,3 @@
-import * as fs from "https://deno.land/std@0.192.0/fs/mod.ts";
 import { writeJson } from "https://deno.land/x/jsonfile@1.0.0/write_json.ts";
 import { exportCsv } from "../output/csv.ts";
 
@@ -10,12 +9,25 @@ import {
   TradeResult,
 } from "../backtrack-engine.ts";
 import {
-  BinanceItemArray,
   getTradeDataWithCache,
   TradeData,
-  transformArrayToObject,
 } from "../binance-api.ts";
 import { CornixConfiguration } from "../cornix.ts";
+import {getFileContent, getInput, readInputCandles} from "../import.ts";
+import {getDateFromTimestampOrDateStr} from "../utils.ts";
+
+
+export interface DetailedBackTrackResult {
+  order: Order;
+  info: TradeResult;
+  sortedUniqueCrosses: any[];
+  tradeData?: TradeData[];
+}
+
+interface BackTrackResult {
+  events: any[];
+  state: AbstractState;
+}
 
 export interface PreBacktrackedData {
   order: Order;
@@ -43,61 +55,6 @@ export interface BackTrackArgs {
   cachePath?: string;
 }
 
-async function getFileContent<T>(path: string): Promise<T> {
-  const isReadableFile = await fs.exists(path, {
-    isReadable: true,
-    isFile: true,
-  });
-
-  if (!isReadableFile) {
-    throw new Error(`Invalid file ${path}`);
-  }
-
-  const fileContent = await Deno.readTextFile(path);
-  const fixedFileContent = fileContent
-    ?.replace(/\n/g, " ")
-    ?.replace(/\r/g, " ")
-    ?.replace(/\t/g, " ") ?? "";
-  return JSON.parse(fixedFileContent) as T;
-}
-
-export async function readInputFilesFromJson<T>(
-  inputPaths: string[],
-): Promise<T[]> {
-  let messages: T[] = [];
-
-  for (const path of inputPaths) {
-    const isReadableDir = await fs.exists(path, {
-      isReadable: true,
-      isDirectory: true,
-    });
-
-    const isReadableFile = await fs.exists(path, {
-      isReadable: true,
-      isFile: true,
-    });
-
-    if (isReadableDir) {
-      const directory = path;
-      for await (const dirEntry of Deno.readDir(directory)) {
-        if (dirEntry.isFile && dirEntry.name.endsWith(".json")) {
-          const messagesFromFile = await getFileContent<T[]>(
-            `${directory}/${dirEntry.name}`,
-          );
-          messages = [...messages, ...messagesFromFile];
-        }
-      }
-    } else if (isReadableFile) {
-      const messagesFromFile = await getFileContent<T[]>(path);
-      messages = [...messages, ...messagesFromFile];
-    } else {
-      console.error(`Could not read file ${path}`);
-    }
-  }
-
-  return messages;
-}
-
 export const defaultCornixConfig: CornixConfiguration = {
   amount: 100,
   entries: "One Target",
@@ -106,187 +63,72 @@ export const defaultCornixConfig: CornixConfiguration = {
   trailingTakeProfit: 0.02,
 };
 
-export async function backtrackCommand(args: BackTrackArgs) {
-  if (args.debug) {
-    console.log("Arguments: ");
-    console.log(JSON.stringify(args));
+async function getCornixConfigFromFileOrDefault(cornixConfigFile: string|null, defaultCornixConfig: CornixConfiguration) {
+  try {
+    const cornixConfig = cornixConfigFile != null
+        ? await getFileContent<CornixConfiguration>(cornixConfigFile)
+        : defaultCornixConfig;
+
+    return cornixConfig;
+  } catch (error) {
+    console.error(error);
+    return defaultCornixConfig;
   }
+}
 
-  const cornixConfig = args.cornixConfigFile != null
-    ? await getFileContent<CornixConfiguration>(args.cornixConfigFile)
-    : defaultCornixConfig;
-
-  const getInput = async () => {
-    const rawData = args.fromDetailedLog
-      ? await readInputFilesFromJson<PreBacktrackedData>(args.orderFiles)
-      : (await readInputFilesFromJson<Order>(args.orderFiles)).map((x) => ({
-        order: x,
-        tradeData: null,
-      }));
-
-    return rawData.map((x) => {
-      const events = x.order?.events?.map(event => ({
-        ...event,
-        date: new Date(event.date),
-      })) ?? [];
-
-      return {
-        ...x,
-        order: {
-          ...x.order,
-          direction: x.order.direction?.toUpperCase(),
-          date: x.order.date != null
-            ? new Date(x.order.date)
-            : new Date(Date.now()),
-          events,
-        },
-      };
-    });
-  };
-
-  const rawData = await getInput();
-  let orders = rawData.map((x) => x.order);
-
-  const tradesForOrders = (rawData as any[]).reduce(
-    (map: Map<Order, PreBacktrackedData>, orderData: PreBacktrackedData) => {
-      return map.set(orderData.order, orderData);
-    },
-    new Map(),
-  ) as Map<Order, PreBacktrackedData>;
-
+function getFilteredOrders(orders: Order[], args: BackTrackArgs) {
   if (args.fromDate) {
-    const from = new Date(parseInt(args.fromDate));
+    const from = getDateFromTimestampOrDateStr(args.fromDate);
     orders = orders.filter((x) => x.date >= from);
   }
 
   if (args.toDate) {
-    const to = new Date(parseInt(args.toDate));
+    const to = getDateFromTimestampOrDateStr(args.toDate);
     orders = orders.filter((x) => x.date <= to);
   }
 
-  let count = 0;
-  const ordersWithResults = [];
+  return orders;
+}
 
-  for (const order of orders) {
-    try {
-      console.log(
-        `Backtracking trade ${order.coin} ${order.direction} ${order.date}`,
-      );
+function getSortedUniqueCrosses(result: BackTrackResult) {
+  const crosses = result?.events?.filter((x) => x.type === "cross") ?? [];
+  const uniqueCrosses: { [key: string]: any } = {};
 
-      if (args.debug) {
-        console.log(JSON.stringify(order));
-      }
-
-      performance.mark("backtrack_start");
-
-      let result = null;
-
-      if (args.downloadBinanceData) {
-        result = await backtrackWithBinanceUntilTradeCloseOrCurrentDate(
-          args,
-          order,
-          cornixConfig,
-        );
-      } else {
-        const tradeData = tradesForOrders.get(order)?.tradeData ?? undefined;
-        result = await backTrackSingleOrder(
-          args,
-          order,
-          cornixConfig,
-          tradeData,
-        );
-      }
-
-      performance.mark("backtrack_end");
-      const time = performance.measure(
-        "backtracking",
-        "backtrack_start",
-        "backtrack_end",
-      );
-
-      if (args.debug) {
-        console.log(`It took ${time.duration}ms`);
-      }
-
-      if (args.debug) {
-        const eventsWithoutCross = result.events
-            .filter(x => x.type !== 'cross')
-            .filter(x => x.level !== 'verbose' || args.verbose)
-            .map(x => ({...x, date: new Date(x.timestamp)}));
-        eventsWithoutCross.forEach((event) => console.log(JSON.stringify(event)));
-      }
-
-      const results = result?.state?.info;
-
-      console.log(`Open time: ${results.openTime}`);
-      console.log(`Close time: ${results.closeTime}`);
-      console.log(`Is closed: ${results.isClosed}`);
-      console.log(`Is cancelled: ${results.isCancelled}`);
-      console.log(`Is profitable: ${results.isProfitable}`);
-      console.log(`PnL: ${results.pnl?.toFixed(2)}%`);
-      console.log(`Profit: ${results.profit?.toFixed(2)}`);
-      console.log(`Hit SL: ${results.hitSl}`);
-      console.log(
-        `Average entry price: ${results.averageEntryPrice.toFixed(6)}`,
-      );
-      console.log("---------------------------------------");
-
-      //      console.log(JSON.stringify(results));
-
-      let sortedUniqueCrosses: any[] = [];
-
-      if (args.detailedLog) {
-        const crosses = result?.events?.filter((x) => x.type === "cross") ?? [];
-        const uniqueCrosses: { [key: string]: any } = {};
-
-        crosses.forEach((cross, idx) => {
-          const crossType = cross.subtype.indexOf("trailing") === -1
-            ? cross.subtype
-            : `${cross.subtype}-${idx}`;
-          const key = `${crossType}-${cross.id ?? 0}-${cross.direction}`;
-          if (!Object.hasOwn(uniqueCrosses, key)) {
-            uniqueCrosses[key] = cross;
-          }
-        });
-
-        sortedUniqueCrosses = Object.keys(uniqueCrosses)
-          .map((x) => uniqueCrosses[x])
-          .toSorted((a, b) => a.timestamp - b.timestamp)
-          .map(x => ({
-            ...x,
-            date: new Date(x.timestamp)
-          }));
-      }
-
-      if (result != null) {
-        ordersWithResults.push({
-          order,
-          info: result.state.info,
-          sortedUniqueCrosses: sortedUniqueCrosses.map((x) => {
-            const cloneOfX = { ...x };
-            delete cloneOfX.tradeData;
-
-            return cloneOfX;
-          }),
-          events: result.events.filter(x => x.level !== 'verbose'),
-          tradeData: sortedUniqueCrosses.map((x) => x.tradeData),
-        });
-      }
-    } catch (error) {
-      console.error(error);
+  crosses.forEach((cross, idx) => {
+    const crossType = cross.subtype.indexOf("trailing") === -1
+      ? cross.subtype
+      : `${cross.subtype}-${idx}`;
+    const key = `${crossType}-${cross.id ?? 0}-${cross.direction}`;
+    if (!Object.hasOwn(uniqueCrosses, key)) {
+      uniqueCrosses[key] = cross;
     }
+  });
 
-    count++;
+  const sortedUniqueCrosses = Object.keys(uniqueCrosses)
+    .map((x) => uniqueCrosses[x])
+    .toSorted((a, b) => a.timestamp - b.timestamp)
+    .map(x => ({
+      ...x,
+      date: new Date(x.timestamp)
+    }));
 
-    if (args.debug) {
-      console.log(
-        `Progress: ${count} / ${orders.length} = ${
-          (count / orders.length * 100).toFixed(2)
-        }%`,
-      );
-    }
-  }
+  return sortedUniqueCrosses;
+}
 
+function writeSingleTradeResult(results: TradeResult) {
+    console.log(`Open time: ${results.openTime}`);
+    console.log(`Close time: ${results.closeTime}`);
+    console.log(`Is closed: ${results.isClosed}`);
+    console.log(`Is cancelled: ${results.isCancelled}`);
+    console.log(`Is profitable: ${results.isProfitable}`);
+    console.log(`PnL: ${results.pnl?.toFixed(2)}%`);
+    console.log(`Profit: ${results.profit?.toFixed(2)}`);
+    console.log(`Hit SL: ${results.hitSl}`);
+    console.log(`Average entry price: ${results.averageEntryPrice.toFixed(6)}`);
+    console.log("---------------------------------------");
+}
+
+function calculateResultsSummary(ordersWithResults: DetailedBackTrackResult[]) {
   const summary = ordersWithResults.reduce((sum, curr) => {
     sum.countOrders++;
 
@@ -329,6 +171,12 @@ export async function backtrackCommand(args: BackTrackArgs) {
     pctSl: 0,
   });
 
+  return summary;
+}
+
+function writeResultsSummary(ordersWithResults: DetailedBackTrackResult[]) {
+  const summary = calculateResultsSummary(ordersWithResults);
+
   console.log("----------- Summary results -----------");
   console.log(`Count orders: ${summary.countOrders}`);
   console.log(`Count Profitable: ${summary.countProfitable}`);
@@ -341,11 +189,11 @@ export async function backtrackCommand(args: BackTrackArgs) {
   console.log(`Total PnL: ${summary.totalPnl.toFixed(2)}%`);
   console.log(`PnL of profitable trades: ${summary.positivePnl.toFixed(2)}`);
   console.log(`PnL of SL trades: ${summary.negativePnl.toFixed(2)}`);
-  console.log(
-    `Average number of reached TPs: ${summary.averageReachedTps.toFixed(2)}`,
-  );
+  console.log(`Average number of reached TPs: ${summary.averageReachedTps.toFixed(2)}`);
   console.log(`Percentage of SL: ${summary.pctSl.toFixed(2)}`);
+}
 
+async function writeResultsToFile(ordersWithResults: DetailedBackTrackResult[], args: BackTrackArgs) {
   if (args.detailedLog) {
     const fileName = args.outputPath ?? `backtrack-results-${Date.now()}.json`;
     await writeJson(fileName, ordersWithResults, { spaces: 2 });
@@ -361,16 +209,105 @@ export async function backtrackCommand(args: BackTrackArgs) {
   }
 }
 
-interface BackTrackResult {
-  events: any[];
-  state: AbstractState;
-}
+export async function backtrackCommand(args: BackTrackArgs) {
+  if (args.debug) {
+    console.log("Arguments: ");
+    console.log(JSON.stringify(args));
+  }
 
-export interface DetailedBackTrackResult {
-  order: Order;
-  info: TradeResult;
-  sortedUniqueCrosses: any[];
-  tradeData?: TradeData[];
+  const cornixConfig = await getCornixConfigFromFileOrDefault(args.cornixConfigFile, defaultCornixConfig);
+
+  const input = await getInput(args);
+  const orders = getFilteredOrders(input.orders, args);
+  const tradesMap = input.tradesMap;
+
+  let count = 0;
+  const ordersWithResults = [];
+
+  for (const order of orders) {
+    try {
+      console.log(`Backtracking trade ${order.coin} ${order.direction} ${order.date}`);
+
+      if (args.debug) {
+        console.log(JSON.stringify(order));
+      }
+
+      performance.mark("backtrack_start");
+
+      let result = null;
+
+      if (args.downloadBinanceData) {
+        result = await backtrackWithBinanceUntilTradeCloseOrCurrentDate(
+          args,
+          order,
+          cornixConfig,
+        );
+      } else {
+        const tradeData = tradesMap.get(order)?.tradeData ?? undefined;
+        result = await backTrackSingleOrder(
+          args,
+          order,
+          cornixConfig,
+          tradeData,
+        );
+      }
+
+      performance.mark("backtrack_end");
+      const time = performance.measure(
+        "backtracking",
+        "backtrack_start",
+        "backtrack_end",
+      );
+
+      if (args.debug) {
+        console.log(`It took ${time.duration}ms`);
+      }
+
+      if (args.debug) {
+        const eventsWithoutCross = result.events
+            .filter(x => x.type !== 'cross')
+            .filter(x => x.level !== 'verbose' || args.verbose)
+            .map(x => ({...x, date: new Date(x.timestamp)}));
+        eventsWithoutCross.forEach((event) => console.log(JSON.stringify(event)));
+      }
+
+      const results = result?.state?.info;
+      writeSingleTradeResult(results);
+
+      let sortedUniqueCrosses: any[] = [];
+
+      if (args.detailedLog) {
+        sortedUniqueCrosses = getSortedUniqueCrosses(result);
+      }
+
+      if (result != null) {
+        ordersWithResults.push({
+          order,
+          info: result.state.info,
+          sortedUniqueCrosses: sortedUniqueCrosses.map((x) => {
+            const cloneOfX = { ...x };
+            delete cloneOfX.tradeData;
+
+            return cloneOfX;
+          }),
+          events: result.events.filter(x => x.level !== 'verbose'),
+          tradeData: sortedUniqueCrosses.map((x) => x.tradeData),
+        });
+      }
+    } catch (error) {
+      console.error(error);
+    }
+
+    count++;
+
+    if (args.debug) {
+      const progressPct = (count / orders.length * 100).toFixed(2);
+      console.log(`Progress: ${count} / ${orders.length} = ${progressPct}%`);
+    }
+  }
+
+  writeResultsSummary(ordersWithResults);
+  await writeResultsToFile(ordersWithResults, args);
 }
 
 async function backTrackSingleOrder(
@@ -380,10 +317,7 @@ async function backTrackSingleOrder(
   tradeData?: TradeData[],
 ): Promise<BackTrackResult> {
   if (tradeData == null && args.candlesFiles) {
-    const binanceRawData = await readInputFilesFromJson<BinanceItemArray>(
-      args.candlesFiles!,
-    );
-    tradeData = binanceRawData.map((x) => transformArrayToObject(x));
+    tradeData = await readInputCandles(args.candlesFiles);
   } else if (tradeData == null && (args.downloadBinanceData ?? true)) {
     tradeData = await getTradeDataWithCache(order.coin, "1m", order.date);
   } else if (tradeData == null) {
@@ -407,9 +341,7 @@ async function backtrackWithBinanceUntilTradeCloseOrCurrentDate(
   cornixConfig: CornixConfiguration,
 ): Promise<BackTrackResult> {
   // always get full day data
-  let currentDate = new Date(
-    new Date(order.date.getTime()).setUTCHours(0, 0, 0, 0),
-  );
+  let currentDate = new Date(new Date(order.date.getTime()).setUTCHours(0, 0, 0, 0));
   let { state, events } = getBackTrackEngine(cornixConfig, order, {
     detailedLog: args.detailedLog,
   });

@@ -14,7 +14,12 @@ import {
 } from "../binance-api.ts";
 import { CornixConfiguration } from "../cornix.ts";
 import {getFileContent, getInput, readInputCandles} from "../import.ts";
-import {getDateFromTimestampOrDateStr} from "../utils.ts";
+import {
+    createDurationFormatter,
+    getDateFromTimestampOrDateStr,
+    getFormattedTradeDuration,
+    getTradeDuration
+} from "../utils.ts";
 
 
 export interface DetailedBackTrackResult {
@@ -125,15 +130,19 @@ function writeSingleTradeResult(results: TradeResult) {
     console.log(`Profit: ${results.profit?.toFixed(2)}`);
     console.log(`Hit SL: ${results.hitSl}`);
     console.log(`Average entry price: ${results.averageEntryPrice.toFixed(6)}`);
+    console.log(`Duration: ${getFormattedTradeDuration(results.openTime, results.closeTime, durationFormatter)}`)
     console.log("---------------------------------------");
 }
 
 function calculateResultsSummary(ordersWithResults: DetailedBackTrackResult[]) {
+  let totalDuration = 0;
   const summary = ordersWithResults.reduce((sum, curr) => {
     sum.countOrders++;
 
     const pnlValue = curr.info.pnl ?? 0;
     const pnl = isNaN(pnlValue) ? 0 : pnlValue;
+
+    totalDuration += getTradeDuration(curr.info.openTime, curr.info.closeTime);
 
     sum.totalPnl += pnl;
     sum.positivePnl += curr.info.isProfitable ? pnl : 0;
@@ -149,6 +158,7 @@ function calculateResultsSummary(ordersWithResults: DetailedBackTrackResult[]) {
 
     sum.averageReachedTps = sum.totalReachedTps / sum.countOrders;
     sum.averagePnl = sum.totalPnl / sum.countOrders;
+    sum.averageDuration = totalDuration / sum.countOrders;
 
     sum.pctSl = sum.countSL / sum.countOrders;
 
@@ -169,6 +179,7 @@ function calculateResultsSummary(ordersWithResults: DetailedBackTrackResult[]) {
     totalReachedTps: 0,
     averageReachedTps: 0,
     pctSl: 0,
+    averageDuration: 0,
   });
 
   return summary;
@@ -191,6 +202,7 @@ function writeResultsSummary(ordersWithResults: DetailedBackTrackResult[]) {
   console.log(`PnL of SL trades: ${summary.negativePnl.toFixed(2)}`);
   console.log(`Average number of reached TPs: ${summary.averageReachedTps.toFixed(2)}`);
   console.log(`Percentage of SL: ${summary.pctSl.toFixed(2)}`);
+  console.log(`Average trade duration: ${durationFormatter(summary.averageDuration)}`)
 }
 
 async function writeResultsToFile(ordersWithResults: DetailedBackTrackResult[], args: BackTrackArgs) {
@@ -209,10 +221,16 @@ async function writeResultsToFile(ordersWithResults: DetailedBackTrackResult[], 
   }
 }
 
+let durationFormatter = createDurationFormatter('en-US', 'narrow');
+
 export async function backtrackCommand(args: BackTrackArgs) {
   if (args.debug) {
     console.log("Arguments: ");
     console.log(JSON.stringify(args));
+  }
+  
+  if (args.locale) {
+    durationFormatter = createDurationFormatter(args.locale, 'narrow');
   }
 
   const cornixConfig = await getCornixConfigFromFileOrDefault(args.cornixConfigFile, defaultCornixConfig);

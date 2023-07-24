@@ -250,6 +250,10 @@ export abstract class AbstractState {
   }
 
   get realizedProfit() {
+    if (this.boughtCoins === 0) {
+      return 0;
+    }
+
     const percentageSold = this.soldCoins / this.boughtCoins;
     return this.calculateProfit(this.saleValue, percentageSold);
   }

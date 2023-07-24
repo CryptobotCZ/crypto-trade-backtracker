@@ -290,7 +290,7 @@ export async function backtrackCommand(args: BackTrackArgs) {
 
             return cloneOfX;
           }),
-          events: result.events.filter(x => x.level !== 'verbose'),
+          events: result.events.filter(x => x.level !== 'verbose' && x.type !== 'cross'),
           tradeData: sortedUniqueCrosses.map((x) => x.tradeData),
         });
       }

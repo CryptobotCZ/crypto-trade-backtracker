@@ -849,8 +849,6 @@ class TakeProfitReachedState extends EntryPointReachedState {
 }
 
 class TakeProfitBeforeEntryState extends AbstractState {
-  // boring state, do nothing
-
   constructor(parentState: AbstractState, tradeData: TradeData) {
     super({
       ...parentState.state,
@@ -866,7 +864,6 @@ class TakeProfitBeforeEntryState extends AbstractState {
 }
 
 class AllProfitsDoneState extends AbstractState {
-  // boring state
   constructor(
     previousState: AbstractState,
     tradeData: TradeData,
@@ -891,7 +888,6 @@ class AllProfitsDoneState extends AbstractState {
 }
 
 class StopLossReachedState extends AbstractState {
-  // boring state
   constructor(previousState: AbstractState, tradeData: TradeData) {
     const closeTime = new Date(tradeData.openTime);
     const slPrice = previousState.state.currentSl!;
@@ -955,14 +951,3 @@ class CancelledState extends AbstractState {
     super(newState);
   }
 }
-
-/**
- * Idea:
- *
- * State machine
- *
- * States:
- * {} - initial state, waiting for entry points
- * {e1} - after some entry, either faiting for further entries or waiting for TP/SL
- * {e1, t1} -
- */

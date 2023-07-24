@@ -17,7 +17,7 @@ export interface Order {
   coin: string;
   leverage?: number;
   exchange?: string;
-  date: Date|number;
+  date: Date;
   entries: number[];
   tps: number[];
   sl: number;

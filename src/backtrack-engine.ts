@@ -269,6 +269,10 @@ export abstract class AbstractState {
   }
 
   get profit() {
+    if (this.spentAmount === 0) {
+      return 0;
+    }
+
     return this.realizedProfit + this.unrealizedProfit;
   }
 

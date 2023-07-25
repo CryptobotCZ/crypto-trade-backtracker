@@ -61,7 +61,7 @@ export interface CornixConfiguration {
 
 /**
  * @param orderTargets order price targets
- * @param priceTargets price targets configured in cornix configuration
+ * @param strategy strategy how to divide price targets
  * @returns
  */
 export function mapPriceTargets(
@@ -116,7 +116,11 @@ export function mapPriceTargets(
 
     return strategy === "Decreasing Exponential"
       ? decreasing
-      : decreasing.toReversed();
+      : decreasing.toReversed().map((x, idx) => ({
+        ...x,
+        id: idx + 1,
+        price: orderTargets[idx],
+      }));
   } else if (strategy === "Evenly Divided") {
     const pct = 100 / orderTargets.length;
 

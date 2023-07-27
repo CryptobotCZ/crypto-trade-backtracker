@@ -22,7 +22,7 @@ export interface Order {
   entryZone?: number[];
   entryType?: 'target' | 'zone';
   tps: number[];
-  sl: number;
+  sl: number | null;
   direction?: "SHORT" | "LONG";
   events?: OrderEvent[];
 }
@@ -591,19 +591,15 @@ class InitialState extends AbstractState {
 
     logger = logger ?? { log: () => {}, verbose: () => {} };
 
-    const cornixConfig: CornixConfiguration = backTrackConfig?.detailedLog
-      ? { ...config, trailingStop: { type: "without" } }
-      : config;
-
-    if (cornixConfig?.maxLeverage != null && order.leverage != cornixConfig?.maxLeverage) {
-      order.leverage = cornixConfig?.maxLeverage;
+    if (config?.maxLeverage != null && order.leverage != config?.maxLeverage) {
+      order.leverage = config?.maxLeverage;
     }
 
-    const cornixDefaultSl = cornixConfig?.sl?.defaultStopLossPct ?? 0;
+    const cornixDefaultSl = config?.sl?.defaultStopLossPct ?? 0;
     const leverage = order.leverage ?? 1;
 
     if (order.sl == null && cornixDefaultSl > 0) {
-      const slPct = (cornixConfig?.sl?.automaticLeverageAdjustment ?? true)
+      const slPct = (config?.sl?.automaticLeverageAdjustment ?? true)
         ? makeAutomaticLeverageAdjustment(cornixDefaultSl, leverage, false)
         : cornixDefaultSl;
 
@@ -611,7 +607,7 @@ class InitialState extends AbstractState {
       order.sl = (1 - slPct) * averageEntryPrice;
     }
 
-    logger.verbose({ type: "info", subType: "config", values: cornixConfig });
+    logger.verbose({ type: "info", subType: "config", values: config });
 
     const openTime = typeof order.date === 'number' ? new Date(order.date) : order.date;
 
@@ -621,7 +617,7 @@ class InitialState extends AbstractState {
       remainingEntries,
       remainingTps,
       order: { ...order, direction },
-      config: cornixConfig,
+      config: config,
       tradeCloseTime: null,
       entries: [],
       currentSl: order.sl,

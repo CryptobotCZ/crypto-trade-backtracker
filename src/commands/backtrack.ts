@@ -233,7 +233,10 @@ export async function backtrackCommand(args: BackTrackArgs) {
     durationFormatter = createDurationFormatter(args.locale, 'narrow');
   }
 
-  const cornixConfig = await getCornixConfigFromFileOrDefault(args.cornixConfigFile, defaultCornixConfig);
+  let cornixConfig = await getCornixConfigFromFileOrDefault(args.cornixConfigFile, defaultCornixConfig);
+  cornixConfig = args?.detailedLog
+    ? { ...cornixConfig, trailingStop: { type: "without" } }
+    : cornixConfig;
 
   const input = await getInput(args);
   const orders = getFilteredOrders(input.orders, args);

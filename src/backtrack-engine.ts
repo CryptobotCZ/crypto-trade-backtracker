@@ -2,6 +2,7 @@ import { TradeData } from "./binance-api.ts";
 import {
   calculateWeightedAverage,
   CornixConfiguration, getEntryZoneTargets,
+  getNewStopLoss,
   makeAutomaticLeverageAdjustment,
   mapPriceTargets,
   PriceTargetWithPrice,
@@ -845,17 +846,8 @@ class TakeProfitReachedState extends EntryPointReachedState {
       x.id > tp.entry
     );
 
-    let newSl = parentState.state.currentSl;
-    if (
-      parentState.state.config.trailingStop.type == "moving-target" &&
-      parentState.state.config.trailingStop.trigger == 1
-    ) {
-      if (tp.entry === 1) {
-        newSl = parentState.averageEntryPrice;
-      } else {
-        newSl = parentState.state.order.tps[tp.entry - 1 - 1]; //activatedTakeProfits[activatedTakeProfits.length - 1 ].price;
-      }
-
+    const newSl = getNewStopLoss(parentState, tp.entry);
+    if (parentState.state.currentSl != newSl) {
       parentState.state.logger.log({ type: 'sl moved', sl: newSl });
     }
 
@@ -981,3 +973,4 @@ class CancelledState extends AbstractState {
     super(newState);
   }
 }
+

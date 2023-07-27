@@ -1,3 +1,5 @@
+import {AbstractState} from "./backtrack-engine.ts";
+
 export type Strategy =
   | "Evenly Divided"
   | "One Target"
@@ -39,7 +41,22 @@ export interface TrailingStopMovingTarget extends AbstractTrailingStop {
   trigger: number;
 }
 
-export type TrailingStop = TrailingStopWithout | TrailingStopMovingTarget;
+export interface TrailingStopBreakeven extends AbstractTrailingStop {
+  type: "breakeven";
+  triggerType: "target"|"percent";
+}
+
+export interface TrailingStopBreakevenTarget extends TrailingStopBreakeven {
+    triggerType: "target";
+    trigger: number;
+}
+
+export interface TrailingStopBreakevenPercent extends TrailingStopBreakeven {
+    triggerType: "percent";
+    percent: "entry-fill" | number;
+}
+
+export type TrailingStop = TrailingStopWithout | TrailingStopMovingTarget | TrailingStopBreakevenTarget | TrailingStopBreakevenPercent;
 
 export interface CornixConfiguration {
   amount: number;
@@ -190,4 +207,31 @@ export function calculateWeightedAverage(priceTargets: PriceTargetWithPrice[]) {
   return priceTargets.reduce((weightedAverage, priceTarget) => {
     return weightedAverage + (priceTarget.price * priceTarget.percentage);
   }, 0);
+}
+
+export function getNewStopLoss(parentState: AbstractState, currentTp: number) {
+    let newSl = parentState.state.currentSl;
+    const trailingStop = parentState.state.config.trailingStop;
+
+    if (trailingStop.type === "moving-target" && currentTp >= trailingStop.trigger) {
+        if (currentTp === 1) {
+            newSl = parentState.averageEntryPrice;
+        } else {
+            newSl = parentState.state.order.tps[currentTp - 1 - 1]; //activatedTakeProfits[activatedTakeProfits.length - 1 ].price;
+        }
+    } else if (trailingStop.type === 'moving-2-target' && currentTp >= trailingStop.trigger) {
+        if (currentTp === 2) {
+            newSl = parentState.averageEntryPrice;
+        } else {
+            newSl = parentState.state.order.tps[currentTp - 2 - 1]; //activatedTakeProfits[activatedTakeProfits.length - 1 ].price;
+        }
+    } else if (trailingStop.type === 'breakeven') {
+        if (trailingStop.triggerType === 'target' && currentTp >= trailingStop.trigger) {
+            newSl = parentState.averageEntryPrice;
+        } else if (trailingStop.triggerType === 'percent' && typeof trailingStop.percent === 'number') {
+
+        }
+    }
+
+    return newSl;
 }

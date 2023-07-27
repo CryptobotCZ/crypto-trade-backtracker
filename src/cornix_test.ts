@@ -1,11 +1,12 @@
 ﻿import {
-    calculateWeightedAverage,
-    getEntryZoneTargets,
-    makeAutomaticLeverageAdjustment,
-    mapPriceTargets,
-    PriceTargetWithPrice
+  calculateWeightedAverage,
+  getEntryZoneTargets, getNewStopLoss,
+  makeAutomaticLeverageAdjustment,
+  mapPriceTargets,
+  PriceTargetWithPrice, TrailingStop
 } from "./cornix.ts";
 import { assertEquals } from "https://deno.land/std@0.188.0/testing/asserts.ts";
+import {AbstractState} from "./backtrack-engine.ts";
 
 Deno.test(function evenlyDistributedPriceTargets() {
   const orderTargets = [ 1, 2, 3, 4, 5, 6, 7, 8 ];
@@ -275,6 +276,70 @@ Deno.test(function testGetEntryZoneTargetsTwo() {
   const zone = [ 100, 200 ];
   const expected = [ 100, 200 ];
   const result = getEntryZoneTargets(zone, 2, 'SHORT');
+
+  assertEquals(result, expected);
+});
+
+function getMockState(trailingStop: TrailingStop): AbstractState {
+  const mockState = {
+    averageEntryPrice: 100,
+    state: {
+      currentSl: 50,
+      config: {
+        trailingStop,
+      },
+      order: {
+        tps: [ 120, 150, 160 ],
+      },
+    },
+  };
+
+  return mockState as any;
+}
+
+Deno.test(function testTrailingSlWithout() {
+  const mockState = getMockState({
+    type: "without",
+  });
+
+  const expected = mockState.state.currentSl;
+  const result = getNewStopLoss(mockState, 1);
+
+  assertEquals(result, expected);
+});
+
+Deno.test(function testTrailingSlMovingTarget1Trigger1() {
+  const mockState = getMockState({
+    type: "moving-target",
+    trigger: 1,
+  });
+
+  const expected = mockState.averageEntryPrice;
+  const result = getNewStopLoss(mockState, 1);
+
+  assertEquals(result, expected);
+});
+
+Deno.test(function testTrailingSlMovingTarget1Trigger2() {
+  const mockState = getMockState({
+    type: "moving-target",
+    trigger: 2,
+  });
+
+  const expected = mockState.state.currentSl;
+  const result = getNewStopLoss(mockState, 1);
+
+  assertEquals(result, expected);
+});
+
+Deno.test(function testTrailingSlMovingTarget1Trigger202() {
+  const mockState = getMockState({
+    type: "moving-target",
+    trigger: 2,
+  });
+
+  const expected = mockState.state.order.tps[0];
+  const result = getNewStopLoss(mockState, 2);
 
   assertEquals(result, expected);
 });

@@ -46,6 +46,8 @@ export interface CornixConfiguration {
   closeTradeOnTpSlBeforeEntry?: boolean;
   firstEntryGracePct?: number;
   entries: Strategy;
+  entryZoneTargets?: number;
+  entryType?: 'zone' | 'target';
   tps: Strategy;
   trailingStop: TrailingStop;
   trailingTakeProfit: number | "without";
@@ -57,6 +59,22 @@ export interface CornixConfiguration {
     stopTimeoutMinutes?: number;
     stopType?: "Limit" | "Market";
   };
+}
+
+export function getEntryZoneTargets(borders: number[], countTargets: number, direction: 'SHORT'|'LONG') {
+  if (countTargets === 1) {
+    return [ borders[0] ];
+  }
+
+  const width = Math.abs(borders[0] - borders[1]);
+  const step = width / (countTargets - 1);
+  const sign = direction === 'LONG' ? -1 : 1;
+
+  const generatedData = Array.from({ length: countTargets - 2 }).map((_, idx) => {
+    return borders[0] + (idx + 1) * sign * step;
+  });
+
+  return [ borders[0], ...generatedData, borders[1] ];
 }
 
 /**

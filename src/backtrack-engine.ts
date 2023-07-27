@@ -1,7 +1,7 @@
 import { TradeData } from "./binance-api.ts";
 import {
   calculateWeightedAverage,
-  CornixConfiguration,
+  CornixConfiguration, getEntryZoneTargets,
   makeAutomaticLeverageAdjustment,
   mapPriceTargets,
   PriceTargetWithPrice,
@@ -19,6 +19,8 @@ export interface Order {
   exchange?: string;
   date: Date;
   entries: number[];
+  entryZone?: number[];
+  entryType?: 'target' | 'zone';
   tps: number[];
   sl: number;
   direction?: "SHORT" | "LONG";
@@ -563,7 +565,20 @@ class InitialState extends AbstractState {
     logger?: Logger,
     backTrackConfig?: BackTrackingConfig,
   ) {
-    const remainingEntries = mapPriceTargets(order.entries, config.entries);
+    order = { ...order };
+    const entryType = order.entryType ?? config.entryType ?? 'target';
+
+    const direction = order.direction ?? (order.tps[0] > order.entries[0] ? "LONG" : "SHORT");
+    const entries = entryType === 'target'
+      ? order.entries
+      : getEntryZoneTargets(order.entries, config.entryZoneTargets ?? 4, direction);
+
+    if (entryType === 'zone') {
+      order.entryZone = order.entries;
+      order.entries = entries;
+    }
+
+    const remainingEntries = mapPriceTargets(entries, config.entries);
     const remainingTps = mapPriceTargets(order.tps, config.tps);
 
     if (sumPct(remainingEntries) !== 100) {
@@ -573,9 +588,6 @@ class InitialState extends AbstractState {
     if (Math.abs(sumPct(remainingTps) - 100.0) > 0.1) {
       throw new Error("TPs percentage must add to 100%");
     }
-
-    const direction = order.direction ??
-      (remainingTps[0].price > remainingEntries[0].price ? "LONG" : "SHORT");
 
     logger = logger ?? { log: () => {}, verbose: () => {} };
 

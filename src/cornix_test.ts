@@ -1,5 +1,6 @@
 ﻿import {
     calculateWeightedAverage,
+    getEntryZoneTargets,
     makeAutomaticLeverageAdjustment,
     mapPriceTargets,
     PriceTargetWithPrice
@@ -240,6 +241,40 @@ Deno.test(function testCalculateWeightedAverage() {
 
   const expected = 62.5;
   const result = calculateWeightedAverage(input);
+
+  assertEquals(result, expected);
+});
+
+
+Deno.test(function testGetEntryZoneTargetsLong() {
+  const zone = [ 200, 100 ];
+  const expected = [ 200, 175, 150, 125, 100 ];
+  const result = getEntryZoneTargets(zone, 5, 'LONG');
+
+  assertEquals(result, expected);
+});
+
+Deno.test(function testGetEntryZoneTargetsShort() {
+  const zone = [ 100, 200 ];
+  const expected = [ 100, 125, 150, 175, 200 ];
+  const result = getEntryZoneTargets(zone, 5, 'SHORT');
+
+  assertEquals(result, expected);
+});
+
+
+Deno.test(function testGetEntryZoneTargetsSingle() {
+  const zone = [ 100, 200 ];
+  const expected = [ 100 ];
+  const result = getEntryZoneTargets(zone, 1, 'SHORT');
+
+  assertEquals(result, expected);
+});
+
+Deno.test(function testGetEntryZoneTargetsTwo() {
+  const zone = [ 100, 200 ];
+  const expected = [ 100, 200 ];
+  const result = getEntryZoneTargets(zone, 2, 'SHORT');
 
   assertEquals(result, expected);
 });

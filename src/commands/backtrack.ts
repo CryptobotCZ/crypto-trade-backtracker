@@ -303,7 +303,7 @@ export async function backtrackCommand(args: BackTrackArgs) {
 
       if (result != null) {
         ordersWithResults.push({
-          order,
+          order: result.state.order,
           info: result.state.info,
           sortedUniqueCrosses: sortedUniqueCrosses.map((x) => {
             const cloneOfX = { ...x };

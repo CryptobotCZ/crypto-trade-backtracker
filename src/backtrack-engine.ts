@@ -290,6 +290,10 @@ export abstract class AbstractState {
       : this.spentAmountWithLev - saleValueWithCurrentValue;
   }
 
+  get order() {
+    return this.state.order;
+  }
+
   constructor(public readonly state: InternalState) {}
 
   updateState(tradeData: TradeData): AbstractState {
@@ -560,7 +564,7 @@ class InitialState extends AbstractState {
   }
 
   constructor(
-    public readonly order: Order,
+    order: Order,
     public readonly config: CornixConfiguration,
     logger?: Logger,
     backTrackConfig?: BackTrackingConfig,

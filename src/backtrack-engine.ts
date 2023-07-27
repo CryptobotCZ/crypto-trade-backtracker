@@ -656,8 +656,9 @@ class EntryPointReachedState extends AbstractState {
 
   hitTp(tradeData: TradeData): AbstractState {
     const price = this.getPriceForTp(tradeData);
+    const trailing = this.state.config.trailingTakeProfit ?? 'without';
 
-    if (this.state.config.trailingTakeProfit === "without") {
+    if (trailing === "without") {
       return this.hitTpWithoutTrailing(tradeData);
     } else if (!this.trailingActive) {
       this.trailingActive = true;

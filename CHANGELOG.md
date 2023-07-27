@@ -2,6 +2,21 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [0.4.0](https://cryptobot/CryptobotCZ/crypto-trade-backtracker/compare/v0.3.0...v0.4.0) (2023-07-27)
+
+
+### Features
+
+* Add support for entry zones ([44a8104](https://cryptobot/CryptobotCZ/crypto-trade-backtracker/commit/44a81040f8b5277163f02b00c0254d6c12a962ca))
+
+
+### Bug Fixes
+
+* Add logging tpBeforeEntry to detailed log ([c2b9dac](https://cryptobot/CryptobotCZ/crypto-trade-backtracker/commit/c2b9dac73aa875940b5f7fcb965b7af2a0364d82))
+* Fix mapPriceTargets calculations, add tests ([d12f23b](https://cryptobot/CryptobotCZ/crypto-trade-backtracker/commit/d12f23b89edab26afa37daecfc7415b3ea66279a))
+* Fix realized profit for unopened trades ([aa0ea66](https://cryptobot/CryptobotCZ/crypto-trade-backtracker/commit/aa0ea66cc91624c252e61cbce546b10df246ecfb))
+* Use updated order for reports ([108c525](https://cryptobot/CryptobotCZ/crypto-trade-backtracker/commit/108c525a5c18b76be6eca082fea1046c2a9ef398))
+
 ## 0.3.0 (2023-07-24)
 
 

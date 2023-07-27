@@ -205,13 +205,13 @@ function writeResultsSummary(ordersWithResults: DetailedBackTrackResult[]) {
   console.log(`Average trade duration: ${durationFormatter(summary.averageDuration)}`)
 }
 
-async function writeResultsToFile(ordersWithResults: DetailedBackTrackResult[], args: BackTrackArgs) {
+async function writeResultsToFile(ordersWithResults: DetailedBackTrackResult[], config: CornixConfiguration, args: BackTrackArgs) {
   if (args.detailedLog) {
     const fileName = args.outputPath ?? `backtrack-results-${Date.now()}.json`;
     await writeJson(fileName, ordersWithResults, { spaces: 2 });
   } else if (args.outputPath?.indexOf(".csv") !== -1) {
     const fileName = args.outputPath ?? `backtrack-results-${Date.now()}.csv`;
-    await exportCsv(ordersWithResults, fileName, args.anonymize, {
+    await exportCsv(ordersWithResults, config, fileName, args.anonymize, {
       delimiter: args.delimiter,
       locale: args.locale,
     });
@@ -328,7 +328,7 @@ export async function backtrackCommand(args: BackTrackArgs) {
   }
 
   writeResultsSummary(ordersWithResults);
-  await writeResultsToFile(ordersWithResults, args);
+  await writeResultsToFile(ordersWithResults, cornixConfig, args);
 }
 
 async function backTrackSingleOrder(

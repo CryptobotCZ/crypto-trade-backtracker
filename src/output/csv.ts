@@ -1,5 +1,6 @@
 ﻿import { Order } from "../backtrack-engine.ts";
 import { DetailedBackTrackResult } from "../commands/backtrack.ts";
+import {CornixConfiguration} from "../cornix.ts";
 
 export interface ExportConfig {
   locale?: string;
@@ -54,6 +55,7 @@ function getMaxPotentialProfit(order: Order): number {
 
 export async function exportCsv(
   backTrackResults: DetailedBackTrackResult[],
+  cornixConfig: CornixConfiguration,
   path: string,
   anonymize: boolean = false,
   config: ExportConfig = defaultConfig,
@@ -170,10 +172,13 @@ export async function exportCsv(
     });
   });
 
+  const emptyRows = Array.from({ length: 3 }).map(_ => []);
+  const cornixConfigStr = JSON.stringify(cornixConfig, undefined, 2);
+
   const separator = usedConfig.delimiter;
-  const data = [csvHeader, ...csvRows].map((row) => row.join(separator)).join(
-    "\n",
-  );
+  const data = [ csvHeader, ...csvRows, ...emptyRows, [ cornixConfigStr ], ]
+      .map((row) => row.join(separator))
+      .join("\n",);
 
   await Deno.writeTextFileSync(path, data);
 }

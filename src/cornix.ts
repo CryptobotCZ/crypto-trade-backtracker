@@ -1,4 +1,4 @@
-import {AbstractState} from "./backtrack-engine.ts";
+import {AbstractState, Order} from "./backtrack-engine.ts";
 
 export type Strategy =
   | "Evenly Divided"
@@ -234,4 +234,44 @@ export function getNewStopLoss(parentState: AbstractState, currentTp: number) {
     }
 
     return newSl;
+}
+
+export function validateOrder(order: Order) {
+  const isArraySortedAsc = arr => arr.every((v, i, a) => !i || a[i-1] <= v);
+  const isArraySortedDesc = arr => arr.every((v, i, a) => !i || a[i-1] >= v);
+  const direction = order.direction ?? (order.tps[0] > order.entries[0] ? "LONG" : "SHORT");
+
+  if (direction === 'SHORT') {
+    if (!isArraySortedAsc(order.entries)) {
+      console.log('For SHORT order, entries should be in ascending order');
+      return false;
+    }
+    
+    if (!isArraySortedDesc(order.tps)) {
+      console.log('For SHORT order, TPs should be in descending order');
+      return false;
+    }
+    
+    if (order.tps[0] > order.entries[0]) {
+      console.log('For SHORT trades, first TPs must be lower then entry price');
+      return false;
+    }
+  } else if (direction === 'LONG') {
+    if (!isArraySortedDesc(order.entries)) {
+      console.log('For LONG order, entries should be in descending order');
+      return false;
+    }
+
+    if (!isArraySortedAsc(order.tps)) {
+      console.log('For LONG order, TPs should be in ascending order');
+      return false;
+    }
+
+    if (order.tps[0] < order.entries[0]) {
+      console.log('For LONG trades, first TPs must be higher then entry price');
+      return false;
+    }
+  }
+  
+  return true;
 }

@@ -12,7 +12,7 @@ import {
   getTradeDataWithCache,
   TradeData,
 } from "../binance-api.ts";
-import { CornixConfiguration } from "../cornix.ts";
+import {CornixConfiguration, validateOrder} from "../cornix.ts";
 import {getFileContent, getInput, readInputCandles} from "../import.ts";
 import {
     createDurationFormatter,
@@ -251,6 +251,12 @@ export async function backtrackCommand(args: BackTrackArgs) {
 
       if (args.debug) {
         console.log(JSON.stringify(order));
+      }
+
+      if (!validateOrder(order)) {
+        console.log(JSON.stringify(order, undefined, 2));
+        console.log('Invalid order, skipping...');
+        continue;
       }
 
       performance.mark("backtrack_start");

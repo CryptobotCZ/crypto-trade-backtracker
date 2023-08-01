@@ -136,6 +136,20 @@ function writeSingleTradeResult(results: TradeResult) {
 
 function calculateResultsSummary(ordersWithResults: DetailedBackTrackResult[]) {
   let totalDuration = 0;
+  const maxTps = Math.max(ordersWithResults.map(x => x.order.tps.length));
+  const maxEntries = Math.max(ordersWithResults.map(x => x.order.entries.length));
+
+  const sumEntriesOrTps = (arr, totalReached, countOrders) => {
+    for (let i = 0; i < totalReached; i++) {
+      if (arr[i] == null) {
+        arr[i] = { count: 0, percentage: 0 };
+      }
+
+      arr[i].count++;
+      arr[i].percentage = arr[i].count / countOrders;
+    }
+  };
+
   const summary = ordersWithResults.reduce((sum, curr) => {
     sum.countOrders++;
 
@@ -145,16 +159,18 @@ function calculateResultsSummary(ordersWithResults: DetailedBackTrackResult[]) {
     totalDuration += getTradeDuration(curr.info.openTime, curr.info.closeTime);
 
     sum.totalPnl += pnl;
-    sum.positivePnl += curr.info.isProfitable ? pnl : 0;
-    sum.negativePnl += curr.info.isProfitable ? 0 : pnl;
+    sum.positivePnl += (curr.info.isProfitable ? pnl : 0);
+    sum.negativePnl += (curr.info.isProfitable ? 0 : pnl);
 
     sum.countProfitable += curr.info.isProfitable ? 1 : 0;
+    sum.countLossy += curr.info.pnl < 0 ? 1 : 0;
     sum.countSL += (curr.info.hitSl && !curr.info.isProfitable) ? 1 : 0;
     sum.countSlAfterTp += (curr.info.hitSl && curr.info.isProfitable) ? 1 : 0;
     sum.countCancelled += curr.info.isCancelled ? 1 : 0;
     sum.countCancelledProfitable += (curr.info.isCancelled && curr.info.isProfitable) ? 1 : 0;
     sum.countCancelledInLoss += (curr.info.isCancelled && !curr.info.isProfitable) ? 1 : 0;
     sum.totalReachedTps += curr.info.reachedTps;
+    sum.countFullTp += (curr.info.reachedTps === curr.order.tps.length) ? 1 : 0;
 
     sum.averageReachedTps = sum.totalReachedTps / sum.countOrders;
     sum.averagePnl = sum.totalPnl / sum.countOrders;
@@ -162,10 +178,14 @@ function calculateResultsSummary(ordersWithResults: DetailedBackTrackResult[]) {
 
     sum.pctSl = sum.countSL / sum.countOrders;
 
+    sumEntriesOrTps(sum.tps, curr.info.reachedTps, sum.countOrders);
+    sumEntriesOrTps(sum.entries, curr.info.reachedEntries, sum.countOrders);
+
     return sum;
   }, {
     countOrders: 0,
     countProfitable: 0,
+    countLossy: 0,
     countSL: 0,
     countCancelled: 0,
     countCancelledProfitable: 0,
@@ -180,28 +200,40 @@ function calculateResultsSummary(ordersWithResults: DetailedBackTrackResult[]) {
     averageReachedTps: 0,
     pctSl: 0,
     averageDuration: 0,
+    tps: Array.from({ length: maxTps }).map(_ => ({ count: 0, percentage: 0})),
+    entries: Array.from({ length: maxEntries }).map(_ => ({ count: 0, percentage: 0})),
   });
 
   return summary;
 }
 
 function writeResultsSummary(ordersWithResults: DetailedBackTrackResult[]) {
+  const formatPct = (fractPct) => (fractPct * 100).toFixed(2);
   const summary = calculateResultsSummary(ordersWithResults);
 
   console.log("----------- Summary results -----------");
   console.log(`Count orders: ${summary.countOrders}`);
-  console.log(`Count Profitable: ${summary.countProfitable}`);
-  console.log(`Count SL: ${summary.countSL}`);
+  console.log(`Count Profitable: ${summary.countProfitable} (${formatPct(summary.countProfitable / summary.countOrders)}%)`);
+  console.log(`Count SL: ${summary.countSL} (${formatPct(summary.countSL / summary.countOrders)}%)`);
   console.log(`Count SL after TP: ${summary.countSlAfterTp}`);
   console.log(`Count Cancelled: ${summary.countCancelled}`);
   console.log(`Count Cancelled profitable: ${summary.countCancelledProfitable}`);
   console.log(`Count Cancelled in loss: ${summary.countCancelledInLoss}`);
   console.log(`Count hit all TPs: ${summary.countFullTp}`);
+
+  summary.tps.forEach((tp, index) => {
+    console.log(`TP${index + 1}: ${tp.count} (${formatPct(tp.percentage)}%)`);
+  });
+
+  summary.entries.forEach((ep, index) => {
+    console.log(`EP${index + 1}: ${ep.count} (${formatPct(ep.percentage)}%)`);
+  });
+
   console.log(`Total PnL: ${summary.totalPnl.toFixed(2)}%`);
-  console.log(`PnL of profitable trades: ${summary.positivePnl.toFixed(2)}`);
-  console.log(`PnL of SL trades: ${summary.negativePnl.toFixed(2)}`);
+  console.log(`PnL of profitable trades: ${summary.positivePnl.toFixed(2)}% (average: ${(summary.positivePnl / summary.countProfitable).toFixed(2)}%)`);
+  console.log(`PnL of SL trades: ${summary.negativePnl.toFixed(2)}% (average: ${(summary.negativePnl / summary.countSL).toFixed(2)}%)`);
+  console.log(`Average PnL per trade: ${(summary.totalPnl / summary.countOrders).toFixed(2)}%`);
   console.log(`Average number of reached TPs: ${summary.averageReachedTps.toFixed(2)}`);
-  console.log(`Percentage of SL: ${summary.pctSl.toFixed(2)}`);
   console.log(`Average trade duration: ${durationFormatter(summary.averageDuration)}`)
 }
 

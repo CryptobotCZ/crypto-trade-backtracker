@@ -32,6 +32,6 @@ Optimally use it with [crypto-signals-analysis](../crypto-signals-analysis)
 ## Versioning
 
 ```text
-npx semantic-version --preMajor
-npx semantic-version
+npx standard-version --preMajor
+npx standard-version
 ```

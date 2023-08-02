@@ -37,9 +37,9 @@ export async function testBacktrackingWithDownloadingData() {
         "events": []
     }
 
-    const args: Partial<BackTrackArgs> = {
+    const args = {
         downloadBinanceData: true,
-    };
+    } as Partial<BackTrackArgs> as any as BackTrackArgs;
     const orders = [ order ];
     const tradesMap = new Map();
 
@@ -82,7 +82,9 @@ export async function testBacktrackingWithDownloadingData() {
         "allocatedAmount": 100,
         "spentAmount": 100,
         "realizedProfit": -70.00765110941074,
-        "unrealizedProfit": 0
+        "unrealizedProfit": 0,
+        "reachedAllEntries": true,
+        "reachedAllTps": false,
     }
 
     assertEquals(info, expectedInfo);

@@ -276,7 +276,7 @@ export function validateOrder(order: Order) {
   return true;
 }
 
-export function getFlattenedCornixConfig(config: Partial<CornixConfiguration>[]) {
+export function getFlattenedCornixConfig(...config: CornixConfiguration[]) {
   // TODO: Add something like user override flag
-  return config.reduce((flattened, current) => ({ ...flattened, ...current }), {});
+  return config.reduce((flattened, current) => ({ ...flattened, ...current }), {} as CornixConfiguration);
 }

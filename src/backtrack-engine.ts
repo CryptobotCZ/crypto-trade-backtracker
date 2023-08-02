@@ -14,6 +14,7 @@ export interface OrderEvent {
 }
 
 export interface Order {
+  signalId?: string;
   amount?: number;
   coin: string;
   leverage?: number;

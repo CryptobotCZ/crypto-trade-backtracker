@@ -113,7 +113,9 @@ export function testOrderCancelledInProfit() {
     allocatedAmount: 100,
     spentAmount: 100,
     realizedProfit: 50,
-    unrealizedProfit: 0
+    unrealizedProfit: 0,
+    reachedAllEntries: true,
+    reachedAllTps: false,
   };
 
   assertEquals(state.info, expectedInfo);
@@ -205,7 +207,9 @@ export function testOrderCancelledByEventType(type: string) {
     allocatedAmount: 100,
     spentAmount: 100,
     realizedProfit: -300,
-    unrealizedProfit: 0
+    unrealizedProfit: 0,
+    reachedAllEntries: true,
+    reachedAllTps: false,
   };
 
   assertEquals(state.info, expectedInfo);

@@ -74,7 +74,9 @@ export function testSingleEntryPointKeepOpenUnrealizedProfit0() {
     allocatedAmount: 100,
     spentAmount: 100,
     realizedProfit: 5,
-    unrealizedProfit: 0
+    unrealizedProfit: 0,
+    reachedAllEntries: true,
+    reachedAllTps: false,
   };
 
   assertEquals(state.info, expectedInfo);
@@ -149,7 +151,9 @@ export function testSingleEntryPointKeepOpenWithUnrealizedProfit() {
     allocatedAmount: 100,
     spentAmount: 100,
     realizedProfit: 5,
-    unrealizedProfit: 95
+    unrealizedProfit: 95,
+    reachedAllEntries: true,
+    reachedAllTps: false,
   };
 
   assertEquals(state.info, expectedInfo);
@@ -203,6 +207,8 @@ export function testSingleEntrySingleTp() {
     averageEntryPrice: 100,
     openTime: new Date('2023-06-15T13:50:00.000Z'),
     closeTime: new Date('2023-06-15T13:50:00.000Z'),
+    reachedAllEntries: true,
+    reachedAllTps: false,
   };
 
   assertEquals(state.info, expectedInfo);

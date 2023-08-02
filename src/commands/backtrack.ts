@@ -138,10 +138,10 @@ function writeSingleTradeResult(results: TradeResult) {
 
 function calculateResultsSummary(ordersWithResults: DetailedBackTrackResult[]) {
   let totalDuration = 0;
-  const maxTps = Math.max(ordersWithResults.map(x => x.order.tps.length));
-  const maxEntries = Math.max(ordersWithResults.map(x => x.order.entries.length));
+  const maxTps = Math.max(...ordersWithResults.map(x => x.order.tps.length));
+  const maxEntries = Math.max(...ordersWithResults.map(x => x.order.entries.length));
 
-  const sumEntriesOrTps = (arr, totalReached, countOrders) => {
+  const sumEntriesOrTps = (arr: Array<{ count: number, percentage: number }>, totalReached: number, countOrders: number) => {
     for (let i = 0; i < totalReached; i++) {
       if (arr[i] == null) {
         arr[i] = { count: 0, percentage: 0 };
@@ -210,7 +210,7 @@ function calculateResultsSummary(ordersWithResults: DetailedBackTrackResult[]) {
 }
 
 function writeResultsSummary(ordersWithResults: DetailedBackTrackResult[]) {
-  const formatPct = (fractPct) => (fractPct * 100).toFixed(2);
+  const formatPct = (fractPct: number) => (fractPct * 100).toFixed(2);
   const summary = calculateResultsSummary(ordersWithResults);
 
   console.log("----------- Summary results -----------");
@@ -288,9 +288,9 @@ export async function backtrackCommand(args: BackTrackArgs) {
 }
 
 export async function runBacktracking(
-    args: Partial<BackTrackArgs>,
+    args: BackTrackArgs,
     orders: Order[],
-    tradesMap: Map<Order, TradeData[]>,
+    tradesMap: Map<Order, PreBacktrackedData>,
     cornixConfig: CornixConfiguration
 ) {
   let count = 0;

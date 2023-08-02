@@ -192,9 +192,19 @@ export async function getTradeData(
   }
 
   if (response.status !== 200) {
-    throw new Error(`Invalid status ${response.status} for coin ${pair}`);
+    throw new BinanceApiError(`Invalid status ${response.status} for coin ${pair}`, response.status);
   }
 
   const json = await response.json() as BinanceItemArray[];
   return json.map((x) => transformArrayToObject(x));
+}
+
+export class BinanceApiError extends Error {
+  get type() {
+    return 'binance_error';
+  }
+
+  constructor(message: string, public readonly statusCode: number) {
+    super(message);
+  }
 }

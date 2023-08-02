@@ -9,6 +9,7 @@ import {
   TradeResult,
 } from "../backtrack-engine.ts";
 import {
+  BinanceApiError,
   getTradeDataWithCache,
   TradeData,
 } from "../binance-api.ts";
@@ -276,6 +277,7 @@ export async function backtrackCommand(args: BackTrackArgs) {
 
   let count = 0;
   const ordersWithResults = [];
+  const invalidCoins = [];
 
   for (const order of orders) {
     try {
@@ -355,6 +357,12 @@ export async function backtrackCommand(args: BackTrackArgs) {
       }
     } catch (error) {
       console.error(error);
+      
+      if (error instanceof BinanceApiError) {
+        if (error.statusCode === 404 || error.statusCode === 400) {
+          invalidCoins.push(order.coin);
+        }
+      }
     }
 
     count++;
@@ -364,6 +372,9 @@ export async function backtrackCommand(args: BackTrackArgs) {
       console.log(`Progress: ${count} / ${orders.length} = ${progressPct}%`);
     }
   }
+
+  console.log("Invalid coin tickers: ");
+  console.log(invalidCoins.join(", "));
 
   writeResultsSummary(ordersWithResults);
   await writeResultsToFile(ordersWithResults, cornixConfig, args);

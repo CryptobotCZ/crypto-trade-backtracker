@@ -26,6 +26,7 @@ export interface Order {
   sl: number | null;
   direction?: "SHORT" | "LONG";
   events?: OrderEvent[];
+  config?: CornixConfiguration;
 }
 
 export interface BackTrackingConfig {

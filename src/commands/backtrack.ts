@@ -13,7 +13,7 @@ import {
   getTradeDataWithCache,
   TradeData,
 } from "../binance-api.ts";
-import {CornixConfiguration, validateOrder} from "../cornix.ts";
+import {CornixConfiguration, getFlattenedCornixConfig, validateOrder} from "../cornix.ts";
 import {getFileContent, getInput, readInputCandles} from "../import.ts";
 import {
     createDurationFormatter,
@@ -287,6 +287,10 @@ export async function backtrackCommand(args: BackTrackArgs) {
 
   for (const order of orders) {
     try {
+      const updatedCornixConfig = order.config != null
+        ? getFlattenedCornixConfig(cornixConfig, order.config)
+        : cornixConfig;
+
       console.log(`Backtracking trade ${order.coin} ${order.direction} ${order.date}`);
 
       if (args.debug) {
@@ -307,14 +311,14 @@ export async function backtrackCommand(args: BackTrackArgs) {
         result = await backtrackWithBinanceUntilTradeCloseOrCurrentDate(
           args,
           order,
-          cornixConfig,
+          updatedCornixConfig,
         );
       } else {
         const tradeData = tradesMap.get(order)?.tradeData ?? undefined;
         result = await backTrackSingleOrder(
           args,
           order,
-          cornixConfig,
+          updatedCornixConfig,
           tradeData,
         );
       }

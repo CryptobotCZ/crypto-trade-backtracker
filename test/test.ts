@@ -8,10 +8,13 @@ import { getTrade } from "./_helpers.ts";
 import { CornixConfiguration } from "../src/cornix.ts";
 import { testSingleEntryPointKeepOpenUnrealizedProfit0, testSingleEntryPointKeepOpenWithUnrealizedProfit, testSingleEntrySingleTp } from "./backtrack-test-01-no-trailing.ts";
 import {testOrderCancelledInLoss, testOrderCancelledInProfit} from "./backtrack-test-03-cancellation.ts";
+import {testBacktrackingWithDownloadingData} from "./backtrack-test-04-with-binance-data.ts";
 
 if (Deno.args.indexOf('--debugFromIDE') === -1) {
   Deno.exit(0);
 }
+
+await testBacktrackingWithDownloadingData();
 
 const config: CornixConfiguration = {
   amount: 100,

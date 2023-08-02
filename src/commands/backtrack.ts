@@ -267,20 +267,32 @@ export async function backtrackCommand(args: BackTrackArgs) {
     console.log("Arguments: ");
     console.log(JSON.stringify(args));
   }
-  
+
   if (args.locale) {
     durationFormatter = createDurationFormatter(args.locale, 'narrow');
   }
 
   let cornixConfig = await getCornixConfigFromFileOrDefault(args.cornixConfigFile, defaultCornixConfig);
   cornixConfig = args?.detailedLog
-    ? { ...cornixConfig, trailingStop: { type: "without" } }
-    : cornixConfig;
+      ? { ...cornixConfig, trailingStop: { type: "without" } }
+      : cornixConfig;
 
   const input = await getInput(args);
   const orders = getFilteredOrders(input.orders, args);
   const tradesMap = input.tradesMap;
 
+  const ordersWithResults = await runBacktracking(args, orders, tradesMap, cornixConfig);
+
+  writeResultsSummary(ordersWithResults);
+  await writeResultsToFile(ordersWithResults, cornixConfig, args);
+}
+
+export async function runBacktracking(
+    args: Partial<BackTrackArgs>,
+    orders: Order[],
+    tradesMap: Map<Order, TradeData[]>,
+    cornixConfig: CornixConfiguration
+) {
   let count = 0;
   const ordersWithResults = [];
   const invalidCoins = [];
@@ -309,25 +321,25 @@ export async function backtrackCommand(args: BackTrackArgs) {
 
       if (args.downloadBinanceData) {
         result = await backtrackWithBinanceUntilTradeCloseOrCurrentDate(
-          args,
-          order,
-          updatedCornixConfig,
+            args,
+            order,
+            updatedCornixConfig,
         );
       } else {
         const tradeData = tradesMap.get(order)?.tradeData ?? undefined;
         result = await backTrackSingleOrder(
-          args,
-          order,
-          updatedCornixConfig,
-          tradeData,
+            args,
+            order,
+            updatedCornixConfig,
+            tradeData,
         );
       }
 
       performance.mark("backtrack_end");
       const time = performance.measure(
-        "backtracking",
-        "backtrack_start",
-        "backtrack_end",
+          "backtracking",
+          "backtrack_start",
+          "backtrack_end",
       );
 
       if (args.debug) {
@@ -386,8 +398,7 @@ export async function backtrackCommand(args: BackTrackArgs) {
   console.log("Invalid coin tickers: ");
   console.log(invalidCoins.join(", "));
 
-  writeResultsSummary(ordersWithResults);
-  await writeResultsToFile(ordersWithResults, cornixConfig, args);
+  return ordersWithResults;
 }
 
 async function backTrackSingleOrder(

@@ -237,8 +237,8 @@ export function getNewStopLoss(parentState: AbstractState, currentTp: number) {
 }
 
 export function validateOrder(order: Order) {
-  const isArraySortedAsc = arr => arr.every((v, i, a) => !i || a[i-1] <= v);
-  const isArraySortedDesc = arr => arr.every((v, i, a) => !i || a[i-1] >= v);
+  const isArraySortedAsc = (arr: number[]) => arr.every((v, i, a) => !i || a[i-1] <= v);
+  const isArraySortedDesc = (arr: number[]) => arr.every((v, i, a) => !i || a[i-1] >= v);
   const direction = order.direction ?? (order.tps[0] > order.entries[0] ? "LONG" : "SHORT");
 
   if (direction === 'SHORT') {

@@ -108,6 +108,12 @@ const addOutputFormattingArgs = (yargs: any) => {
   yargs.option('delimiter', {
     type: 'string'
   });
+
+  yargs.option('outputFormat', {
+      type: 'string',
+      default: 'detailed',
+  });
+  yargs.choices('outputFormat', ['detailed', 'cornixLog']);
 };
 
 yargs(Deno.args)

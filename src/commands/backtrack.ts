@@ -1,5 +1,5 @@
 import { writeJson } from "https://deno.land/x/jsonfile@1.0.0/write_json.ts";
-import { exportCsv } from "../output/csv.ts";
+import {exportCsv, exportCsvInCornixFormat} from "../output/csv.ts";
 
 import {
   AbstractState,
@@ -59,6 +59,7 @@ export interface BackTrackArgs {
   locale?: string;
   delimiter?: string;
   cachePath?: string;
+  outputFormat?: 'detailed' | 'cornixLog';
 }
 
 export const defaultCornixConfig: CornixConfiguration = {
@@ -244,7 +245,12 @@ async function writeResultsToFile(ordersWithResults: DetailedBackTrackResult[], 
     await writeJson(fileName, ordersWithResults, { spaces: 2 });
   } else if (args.outputPath?.indexOf(".csv") !== -1) {
     const fileName = args.outputPath ?? `backtrack-results-${Date.now()}.csv`;
-    await exportCsv(ordersWithResults, config, fileName, args.anonymize, {
+
+    const exportFunction = args.outputFormat === 'detailed'
+        ? exportCsv
+        : exportCsvInCornixFormat;
+
+    await exportFunction(ordersWithResults, config, fileName, args.anonymize, {
       delimiter: args.delimiter,
       locale: args.locale,
     });

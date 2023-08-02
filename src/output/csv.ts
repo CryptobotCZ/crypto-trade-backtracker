@@ -141,8 +141,7 @@ export async function exportCsv(
     return [
       (order as any).signalId,
       order.date.toLocaleDateString(usedConfig.locale, options as any),
-      x.info.closeTime?.toLocaleDateString(usedConfig.locale, options as any) ??
-        "",
+      x.info.closeTime?.toLocaleDateString(usedConfig.locale, options as any) ?? "",
       order.coin,
       order.exchange,
       order.direction,
@@ -179,6 +178,121 @@ export async function exportCsv(
   const data = [ csvHeader, ...csvRows, ...emptyRows, [ cornixConfigStr ], ]
       .map((row) => row.join(separator))
       .join("\n",);
+
+  await Deno.writeTextFileSync(path, data);
+}
+
+export async function exportCsvInCornixFormat(
+  backTrackResults: DetailedBackTrackResult[],
+  cornixConfig: CornixConfiguration,
+  path: string,
+  anonymize: boolean = false,
+  config: ExportConfig = defaultConfig,
+) {
+  const usedConfig = {
+    ...defaultConfig,
+    ...config,
+  };
+
+  const intl = new Intl.NumberFormat(usedConfig.locale, {
+    useGrouping: false,
+  });
+  const decimalSeparator = usedConfig.decimalSeparator ?? getDecimalSeparator(usedConfig.locale!);
+  const maxStats = backTrackResults.reduce((stats: any, x) => {
+    return {
+      maxCountTP: Math.max(stats.maxCountTP, x.order.tps.length),
+      maxCountEntry: Math.max(stats.maxCountEntry, x.order.entries.length),
+    };
+  }, {
+    maxCountTP: 0,
+    maxCountEntry: 0,
+  });
+
+  const csvHeader = [
+    "Date Open UTC",
+    "Symbol",
+    "Status",
+    "Leverage",
+    "Direction",
+    "Signal Gained Profit %",
+    "Last Target",
+    "Entry Targets % Filled",
+    "Number Of Filled Entry Targets",
+    "Number Of Entry Targets",
+  ];
+
+  const options = {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+  };
+
+  const csvRows = backTrackResults.map((x) => {
+    const order = x.order;
+
+    const getOrderStatus = (result: DetailedBackTrackResult) => {
+      const info = result.info;
+      const order = x.order;
+
+      if (!info.isClosed && info.reachedTps === 0) {
+        return 'Buy';
+      } else if (!info.isClosed) {
+        return 'Partial Targets Achieved';
+      } else {
+        if (info.isCancelled) {
+          if (info.reachedEntries > 0) {
+            return info.isProfitable
+              ? 'Cancelled in Profit'
+              : 'Cancelled in Loss';
+          } else {
+            return info.reachedEntries === 0 && info.reachedTps > 0 
+                ? 'Reached TP before entry'
+                : 'Cancelled in Entry';
+          }
+        } else if (info.isClosed && info.hitSl) {
+          return info.isProfitable
+            ? 'Partial Targets Achieved'
+            : 'Stopped Out';
+        } else if (info.isClosed && info.reachedAllTps) {
+          return 'All Targets Achieved';
+        }
+
+        return 'Unknown status';
+      }
+    };
+
+    return [
+      order.date.toLocaleDateString('en-US', options as any),
+      order.coin,
+      getOrderStatus(x),
+      order.leverage,
+      order.direction,
+      x.info.pnl,
+      x.info.reachedTps,
+      ((x.info.reachedEntries / x.order.entries.length) * 100),
+      x.info.reachedEntries,
+      x.order.entries.length,
+    ].map((x, idx) => {
+      const val = idx > 0 && typeof x === "number" ? intl.format(x) : x;
+
+      if (val?.toString()?.includes(usedConfig.delimiter!)) {
+        return `"${val}"`;
+      }
+
+      return val;
+    });
+  });
+
+  const emptyRows = Array.from({ length: 3 }).map(_ => []);
+  const cornixConfigStr = JSON.stringify(cornixConfig, undefined, 2);
+
+  const separator = usedConfig.delimiter;
+  const data = [ csvHeader, ...csvRows, ...emptyRows, [ cornixConfigStr ], ]
+    .map((row) => row.join(separator))
+    .join("\n",);
 
   await Deno.writeTextFileSync(path, data);
 }

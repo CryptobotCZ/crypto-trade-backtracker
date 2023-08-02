@@ -171,7 +171,7 @@ function calculateResultsSummary(ordersWithResults: DetailedBackTrackResult[]) {
     sum.countCancelledProfitable += (curr.info.isCancelled && curr.info.isProfitable) ? 1 : 0;
     sum.countCancelledInLoss += (curr.info.isCancelled && !curr.info.isProfitable) ? 1 : 0;
     sum.totalReachedTps += curr.info.reachedTps;
-    sum.countFullTp += (curr.info.reachedTps === curr.order.tps.length) ? 1 : 0;
+    sum.countFullTp += curr.info.reachedAllTps ? 1 : 0;
 
     sum.averageReachedTps = sum.totalReachedTps / sum.countOrders;
     sum.averagePnl = sum.totalPnl / sum.countOrders;

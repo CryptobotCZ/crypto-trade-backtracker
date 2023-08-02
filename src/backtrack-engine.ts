@@ -34,7 +34,9 @@ export interface BackTrackingConfig {
 
 export interface TradeResult {
   reachedEntries: number;
+  reachedAllEntries: boolean;
   reachedTps: number;
+  reachedAllTps: boolean;
   openTime: Date;
   closeTime: Date | null;
   isClosed: boolean;
@@ -510,7 +512,9 @@ export abstract class AbstractState {
   get info(): TradeResult {
     return {
       reachedEntries: this.state.entries.length,
+      reachedAllEntries: this.state.remainingEntries.length === 0,
       reachedTps: this.state.takeProfits.at(-1)?.entry ?? 0,
+      reachedAllTps: this.state.remainingTps.length === 0,
       openTime: this.state.tradeOpenTime,
       closeTime: this.state.tradeCloseTime,
       isClosed: this.state.tradeCloseTime != null,
@@ -873,9 +877,21 @@ class TakeProfitReachedState extends EntryPointReachedState {
 
 class TakeProfitBeforeEntryState extends AbstractState {
   constructor(parentState: AbstractState, tradeData: TradeData) {
+    const tradeCloseTime = new Date(tradeData.openTime);
     super({
       ...parentState.state,
-      tradeCloseTime: new Date(tradeData.openTime),
+      tradeCloseTime: tradeCloseTime,
+      cancelled: true,
+      takeProfits: [
+        {
+          entry: 1,
+          price: tradeData.open,
+          coins: 0,
+          total: 0,
+          date: tradeCloseTime,
+          state: 'Reached TP before entry',
+        }
+      ]
     });
 
     this.state.logger.log({

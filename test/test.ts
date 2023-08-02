@@ -3,8 +3,15 @@ import {
   TradeData,
   transformArrayToObject,
 } from "./../src/binance-api.ts";
-import { backtrack, CornixConfiguration, Order } from "../src/backtrack.ts";
+import { backtrack, Order } from "../src/backtrack-engine.ts";
 import { getTrade } from "./_helpers.ts";
+import { CornixConfiguration } from "../src/cornix.ts";
+import { testSingleEntryPointKeepOpenUnrealizedProfit0, testSingleEntryPointKeepOpenWithUnrealizedProfit, testSingleEntrySingleTp } from "./backtrack-test-01-no-trailing.ts";
+import {testOrderCancelledInLoss, testOrderCancelledInProfit} from "./backtrack-test-03-cancellation.ts";
+
+if (Deno.args.indexOf('--debugFromIDE') === -1) {
+  Deno.exit(0);
+}
 
 const config: CornixConfiguration = {
   amount: 100,
@@ -86,8 +93,7 @@ function test02() {
     entries: [100, 50],
     tps: [120],
     sl: 40,
-    date: new Date(2023, 6 - 1, 15, 16 - 1, 50),
-    timestamp: new Date(2023, 6 - 1, 15, 16 - 1, 50).getTime(),
+    date: new Date(2023, 6 - 1, 15, 16 - 1, 50)
   };
 
   const tradeData: TradeData[] = [
@@ -129,8 +135,7 @@ function test03() {
     leverage: 20,
     tps: [5.235, 5.295, 5.419],
     sl: 4.980,
-    date: tradeOpenTime,
-    timestamp: tradeOpenTime.getTime(),
+    date: tradeOpenTime
   };
 
   const tradeData: TradeData[] = [
@@ -183,7 +188,6 @@ function test04() {
     trailingStop: { type: "without" },
   };
 
-  const date = new Date(2023, 6 - 1, 15, 16 - 1, 50);
   const order: Order = {
     coin: "INJUSDT",
     leverage: 10,
@@ -191,8 +195,7 @@ function test04() {
     entries: [100],
     tps: [110, 120, 130],
     sl: 40,
-    date,
-    timestamp: date.getTime(), // new Date(2023, 6, 15, 16, 50).getTime()
+    date: new Date(2023, 6 - 1, 15, 16 - 1, 50)
   };
 
   const tradeData: TradeData[] = [
@@ -300,7 +303,6 @@ async function test05() {
     tps: [30736.9, 31039.8, 31342.6, 31796.8, 32099.7, 32553.9],
     sl: 28500,
     date,
-    timestamp: date.getTime(), // new Date(2023, 6, 15, 16, 50).getTime()
   };
 
   const directory = "data";
@@ -350,7 +352,6 @@ async function test06() {
     tps: [30736.9, 31039.8, 31342.6, 31796.8, 32099.7, 32553.9],
     sl: 28500,
     date,
-    timestamp: date.getTime(), // new Date(2023, 6, 15, 16, 50).getTime()
   };
 
   const best = { pnl: 0, trailing: 0 };
@@ -385,5 +386,5 @@ async function test06() {
   );
 }
 
-await test05();
-await test06();
+// await testSingleEntryPointKeepOpenWithUnrealizedProfit();
+await testOrderCancelledInProfit();

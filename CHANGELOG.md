@@ -2,6 +2,25 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+## [0.5.0](https://cryptobot/CryptobotCZ/crypto-trade-backtracker/compare/v0.4.0...v0.5.0) (2023-08-02)
+
+
+### Features
+
+* Add cornix log .csv format ([34cacdc](https://cryptobot/CryptobotCZ/crypto-trade-backtracker/commit/34cacdcdead59606d7e9339f226c00ba51ed504b))
+* Add logging invalid coin tickers ([db4ce44](https://cryptobot/CryptobotCZ/crypto-trade-backtracker/commit/db4ce448e2cf0e5710f8f97754ba095926b220b2))
+* Add more details to results summary ([6b2c239](https://cryptobot/CryptobotCZ/crypto-trade-backtracker/commit/6b2c239c803091caec137d6f3aa9617cf9692d6f))
+* Add order validation ([f374e0e](https://cryptobot/CryptobotCZ/crypto-trade-backtracker/commit/f374e0ec4353c4ea08aa1c63b68de82848f7220d))
+* Add support for overriding cornix config in order ([c50f358](https://cryptobot/CryptobotCZ/crypto-trade-backtracker/commit/c50f358006258da723cf9815d5c929e7c9dad6cf))
+* Add support for SL Breakeven and moving target 2 ([29698ab](https://cryptobot/CryptobotCZ/crypto-trade-backtracker/commit/29698ab1aa597e7d6fdad6ad3e6927e98e568ccc))
+* Export used cornix config to results .csv ([c47f907](https://cryptobot/CryptobotCZ/crypto-trade-backtracker/commit/c47f9075a88ffef3457a8617abdf447b8f678993))
+
+
+### Bug Fixes
+
+* Fix bug that caused trailing to be activated by default ([2d7e5c8](https://cryptobot/CryptobotCZ/crypto-trade-backtracker/commit/2d7e5c81e13d3c75104f1ada809acd472d1e1884))
+* Fix reporting of all targets achieved ([a101555](https://cryptobot/CryptobotCZ/crypto-trade-backtracker/commit/a101555fed0d2a9fa2dede2eed197df98efb62c8))
+
 ### [0.4.0](https://cryptobot/CryptobotCZ/crypto-trade-backtracker/compare/v0.3.0...v0.4.0) (2023-07-27)
 
 

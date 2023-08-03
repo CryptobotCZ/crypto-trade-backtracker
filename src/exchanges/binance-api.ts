@@ -85,7 +85,7 @@ export async function getTradeData(
   pair: string,
   interval: string,
   startTime?: Date | number,
-  limit = 1441,
+  limit = 1440,
 ) {
   if (pair === "SHIBUSDT") {
     return [];
@@ -94,7 +94,7 @@ export async function getTradeData(
   const time = performance.measure("request");
 
   // default rate limit per IP is 2,400/min
-  // costs of 1 file with 1441 records is 10
+  // costs of 1 file with 1440 records is 10
   // rate limit = 4 requests per second = 1 each 250ms.
   // better be safe then sorry, use 750ms interval between requests. 
   if (!isFirstRun && time?.duration < 750) {

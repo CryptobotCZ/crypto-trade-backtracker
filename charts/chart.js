@@ -192,7 +192,7 @@ function calculateSMA(data, count) {
     return result;
 }
 
-async function getTradeData(startTime, pair, interval, limit = 1441) {
+async function getTradeData(startTime, pair, interval, limit = 1440) {
     pair = pair.replace('/', '');
     
     const url = "https://fapi.binance.com/fapi/v1/klines";
@@ -219,7 +219,7 @@ async function getTradeData(startTime, pair, interval, limit = 1441) {
     return await response.json();
 }
 
-async function getChartData(startTime, pair, interval, limit = 1441) {
+async function getChartData(startTime, pair, interval, limit = 1440) {
     const klines = await getTradeData(startTime, pair, interval, limit);
     return formatChartData(klines);
 }

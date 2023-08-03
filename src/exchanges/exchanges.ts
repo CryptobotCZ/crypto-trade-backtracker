@@ -116,13 +116,13 @@ export async function getTradeDataWithCache(
   const dataFromCache = await loadDataFromCache(pair, exchange, interval, startDate);
 
   if (dataFromCache != null) {
-    return dataFromCache.length < 1441 ? [] : dataFromCache;
+    return dataFromCache.length < 1440 ? [] : dataFromCache;
   }
 
   const dayStart = new Date(startDate.getTime()).setUTCHours(0, 0, 0, 0);
   const tradeData = await getTradeData(pair, exchange, interval, startTime);
 
-  if (tradeData.length < 1441) {
+  if (tradeData.length < 1440) {
     return tradeData;
   }
 
@@ -140,7 +140,7 @@ export async function getTradeData(
   exchange: string,
   interval: string,
   startTime?: Date | number,
-  limit = 1441,
+  limit = 1440,
 ) {
   const selectedExchange = getExchange(exchange);
   const getTradeData = selectedExchange.api;

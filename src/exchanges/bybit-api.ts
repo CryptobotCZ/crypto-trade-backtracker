@@ -95,7 +95,7 @@ export async function getTradeData(
     pair: string,
     interval: string,
     startTime?: Date | number,
-    limit = 1441,
+    limit = 1440,
 ) {
     const time = performance.measure("request");
     const startTimestamp = typeof startTime === "number"

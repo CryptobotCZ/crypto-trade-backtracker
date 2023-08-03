@@ -1,4 +1,4 @@
-import { TradeData } from "../src/binance-api.ts";
+import { TradeData } from "../src/exchanges/binance-api.ts";
 
 export function getTrade(data: Partial<TradeData>): TradeData {
   return {

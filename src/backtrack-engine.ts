@@ -1,4 +1,4 @@
-import { TradeData } from "./binance-api.ts";
+import { TradeData } from "./exchanges/exchanges.ts";
 import {
   calculateWeightedAverage,
   CornixConfiguration, getEntryZoneTargets,

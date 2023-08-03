@@ -9,10 +9,10 @@ import {
   TradeResult,
 } from "../backtrack-engine.ts";
 import {
-  BinanceApiError,
+  ApiError,
   getTradeDataWithCache,
   TradeData,
-} from "../binance-api.ts";
+} from "../exchanges/exchanges.ts";
 import {CornixConfiguration, getFlattenedCornixConfig, validateOrder} from "../cornix.ts";
 import {getFileContent, getInput, readInputCandles} from "../import.ts";
 import {
@@ -47,6 +47,8 @@ export interface BackTrackArgs {
   cornixConfigFile: string;
   candlesFiles?: string[];
   downloadBinanceData?: boolean;
+  downloadExchangeData?: boolean;
+  exchange?: string;
   debug?: boolean;
   verbose?: boolean;
   detailedLog?: boolean;
@@ -319,8 +321,8 @@ export async function runBacktracking(
 
       let result = null;
 
-      if (args.downloadBinanceData) {
-        result = await backtrackWithBinanceUntilTradeCloseOrCurrentDate(
+      if (args.downloadBinanceData || args.downloadExchangeData) {
+        result = await backtrackWithExchangeDataUntilTradeCloseOrCurrentDate(
             args,
             order,
             updatedCornixConfig,
@@ -379,8 +381,8 @@ export async function runBacktracking(
       }
     } catch (error) {
       console.error(error);
-      
-      if (error instanceof BinanceApiError) {
+
+      if (error instanceof ApiError) {
         if (error.statusCode === 404 || error.statusCode === 400) {
           invalidCoins.push(order.coin);
         }
@@ -426,7 +428,7 @@ async function backTrackSingleOrder(
   return { state, events };
 }
 
-async function backtrackWithBinanceUntilTradeCloseOrCurrentDate(
+async function backtrackWithExchangeDataUntilTradeCloseOrCurrentDate(
   args: BackTrackArgs,
   order: Order,
   cornixConfig: CornixConfiguration,
@@ -442,6 +444,7 @@ async function backtrackWithBinanceUntilTradeCloseOrCurrentDate(
       order.coin,
       "1m",
       currentDate,
+      args.exchange ?? 'binance'
     );
 
     if (currentTradeData.length === 0) {

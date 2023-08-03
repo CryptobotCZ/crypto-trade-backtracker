@@ -1,9 +1,6 @@
-import * as fs from "https://deno.land/std@0.192.0/fs/mod.ts";
-import { writeJson } from "https://deno.land/x/jsonfile/mod.ts";
 import { sleep } from "https://deno.land/x/sleep/mod.ts";
-import { global } from "./globals.ts";
-import { dirname } from "https://deno.land/std@0.192.0/path/mod.ts";
-import * as path from "https://deno.land/std/path/mod.ts";
+
+import { Exchange } from "./exchanges.ts";
 
 export interface TradeData {
   openTime: number;
@@ -70,78 +67,16 @@ enum TimeInterval {
   months1 = "1M",
 }
 
-function getCachePath() {
-  return global.inputArguments?.cachePath ?? './cache';
-}
+export function getCoinName(coin: string) {
+  coin = coin
+      .replace("SUSHIUSDT.P", "SUSHIUSDT")
+      .replace("SUSHIUSDTPERP", "SUSHIUSDT")
+      .replace(".P", "")
+      .replace("PERP", "");
 
-function getSingleCacheFilePath(pair: string, interval: string, timestamp: number) {
-  const cacheDirectory = getCachePath();
-  const fileName = `${pair}_${interval}_${timestamp}.json`;
-  const nestedPath = `${interval}/${pair}/${fileName}`;
-  const fullPath = `${cacheDirectory}/${nestedPath}`;
+  coin = coin.replace("/", "");
 
-  return fullPath;
-}
-
-export async function loadDataFromCache(
-  pair: string,
-  interval: string,
-  startTime: Date,
-) {
-  const dayStart = new Date(startTime.getTime()).setUTCHours(0, 0, 0, 0);
-  const fullPath = getSingleCacheFilePath(pair, interval, dayStart);
-
-  const isReadableFile = await fs.exists(fullPath, {
-    isReadable: true,
-    isFile: true,
-  });
-
-  if (!isReadableFile) {
-    return null;
-  }
-
-  const data = await Deno.readTextFile(fullPath);
-  return JSON.parse(data) as TradeData[];
-}
-
-export async function getTradeDataWithCache(
-  pair: string,
-  interval: string,
-  startTime?: Date,
-) {
-  pair = pair
-    .replace("SUSHIUSDT.P", "SUSHIUSDT")
-    .replace("SUSHIUSDTPERP", "SUSHIUSDT")
-    .replace(".P", "")
-    .replace("PERP", "");
-
-  if (pair === "SHIBUSDT") {
-    return [];
-  }
-
-  pair = pair.replace("/", "");
-
-  const startDate = startTime ?? new Date();
-  const dataFromCache = await loadDataFromCache(pair, interval, startDate);
-
-  if (dataFromCache != null) {
-    return dataFromCache.length < 1441 ? [] : dataFromCache;
-  }
-
-  const dayStart = new Date(startDate.getTime()).setUTCHours(0, 0, 0, 0);
-  const tradeData = await getTradeData(pair, interval, startTime);
-
-  if (tradeData.length < 1441) {
-    return tradeData;
-  }
-
-  const fullPath = path.resolve(getSingleCacheFilePath(pair, interval, dayStart));
-  const cacheDir = dirname(fullPath);
-  await fs.ensureDir(cacheDir);
-
-  await writeJson(fullPath, tradeData, { spaces: 2 });
-
-  return tradeData;
+  return coin;
 }
 
 let isFirstRun = true;
@@ -152,6 +87,10 @@ export async function getTradeData(
   startTime?: Date | number,
   limit = 1441,
 ) {
+  if (pair === "SHIBUSDT") {
+    return [];
+  }
+
   const time = performance.measure("request");
 
   // default rate limit per IP is 2,400/min
@@ -208,3 +147,9 @@ export class BinanceApiError extends Error {
     super(message);
   }
 }
+
+export const BinanceApi: Exchange = {
+  exchange: 'binance',
+  api: getTradeData,
+  getCoinName,
+};

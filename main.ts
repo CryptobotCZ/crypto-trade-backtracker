@@ -6,6 +6,7 @@ import {
 } from "./src/commands/backtrack.ts";
 import { global } from "./src/globals.ts";
 import { updateCacheStructure } from "./src/commands/update-cache.ts";
+import {installedExchanges} from "./src/exchanges/exchanges.ts";
 
 const addInputFilesArg = (yargs: any) => {
   yargs.positional("orderFiles", {
@@ -38,11 +39,24 @@ const addOutputPathArg = (yargs: any) => {
   });
 };
 
-const addDownloadBinanceData = (yargs: any) => {
+const addDownloadExchangeData = (yargs: any) => {
   yargs.option("downloadBinanceData", {
     describe: "Download trade data from binance",
     type: "boolean",
   });
+
+  yargs.option("downloadExchangeData", {
+      describe: "Download trade data from exchange",
+      type: "boolean",
+      default: false,
+  });
+
+  yargs.option("exchange", {
+      describe: "Exchange to download data from",
+      type: "string",
+      default: "binance"
+  });
+  yargs.choices("exchange", installedExchanges.map(x => x.exchange.toLowerCase()));
 };
 
 const addDebugParam = (yargs: any) => {
@@ -125,7 +139,7 @@ yargs(Deno.args)
       addInputFilesArg(yargs);
       addCornixConfigFile(yargs);
       addCandlesFiles(yargs);
-      addDownloadBinanceData(yargs);
+      addDownloadExchangeData(yargs);
       addDebugParam(yargs);
       addDetailedLog(yargs);
       addFromDetailedLog(yargs);

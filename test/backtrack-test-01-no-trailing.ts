@@ -1,5 +1,5 @@
 import { assertEquals } from "https://deno.land/std@0.188.0/testing/asserts.ts";
-import { TradeData } from "./../src/binance-api.ts";
+import { TradeData } from "../src/exchanges/exchanges.ts";
 import { backtrack, Order, TradeResult } from "../src/backtrack-engine.ts";
 import { getTrade } from "./_helpers.ts";
 import { CornixConfiguration } from "../src/cornix.ts";

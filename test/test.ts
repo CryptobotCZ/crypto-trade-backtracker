@@ -2,7 +2,7 @@ import {
   getTradeData,
   TradeData,
   transformArrayToObject,
-} from "./../src/binance-api.ts";
+} from "../src/exchanges/binance-api.ts";
 import { backtrack, Order } from "../src/backtrack-engine.ts";
 import { getTrade } from "./_helpers.ts";
 import { CornixConfiguration } from "../src/cornix.ts";

@@ -1,7 +1,7 @@
 ﻿import * as fs from "https://deno.land/std@0.192.0/fs/mod.ts";
 import {Order} from "./backtrack-engine.ts";
 import {PreBacktrackedData} from "./commands/backtrack.ts";
-import {BinanceItemArray, transformArrayToObject} from "./binance-api.ts";
+import {BinanceItemArray, transformArrayToObject} from "./exchanges/binance-api.ts";
 
 export async function getFileContent<T>(path: string): Promise<T> {
     const isReadableFile = await fs.exists(path, {
@@ -108,3 +108,4 @@ export async function getInput(args: { fromDetailedLog?: boolean, orderFiles: st
       orders,
     };
 }
+

@@ -251,12 +251,12 @@ export function validateOrder(order: Order) {
       console.log('For SHORT order, entries should be in ascending order');
       return false;
     }
-    
+
     if (!isArraySortedDesc(order.tps)) {
       console.log('For SHORT order, TPs should be in descending order');
       return false;
     }
-    
+
     if (order.tps[0] > order.entries[0]) {
       console.log('For SHORT trades, first TPs must be lower then entry price');
       return false;
@@ -277,7 +277,7 @@ export function validateOrder(order: Order) {
       return false;
     }
   }
-  
+
   return true;
 }
 

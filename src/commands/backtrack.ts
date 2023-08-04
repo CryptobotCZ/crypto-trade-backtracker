@@ -1,4 +1,3 @@
-import { TradeData } from './../exchanges/binance-api';
 import { writeJson } from "https://deno.land/x/jsonfile@1.0.0/write_json.ts";
 import {exportCsv, exportCsvInCornixFormat} from "../output/csv.ts";
 
@@ -65,6 +64,10 @@ export interface BackTrackArgs {
   delimiter?: string;
   cachePath?: string;
   outputFormat?: 'detailed' | 'cornixLog';
+
+  maxActiveOrders?: number;
+  accountInitialBalance?: number;
+  accountMode?: boolean;
 }
 
 export const defaultCornixConfig: CornixConfiguration = {
@@ -178,6 +181,7 @@ function calculateResultsSummary(ordersWithResults: DetailedBackTrackResult[]) {
     sum.countCancelledInLoss += (curr.info.isCancelled && !curr.info.isProfitable) ? 1 : 0;
     sum.totalReachedTps += curr.info.reachedTps;
     sum.countFullTp += curr.info.reachedAllTps ? 1 : 0;
+    sum.countOpen += curr.info.isClosed ? 0 : 1;
 
     sum.averageReachedTps = sum.totalReachedTps / sum.countOrders;
     sum.averagePnl = sum.totalPnl / sum.countOrders;
@@ -194,6 +198,7 @@ function calculateResultsSummary(ordersWithResults: DetailedBackTrackResult[]) {
     countProfitable: 0,
     countLossy: 0,
     countSL: 0,
+    countOpen: 0,
     countCancelled: 0,
     countCancelledProfitable: 0,
     countCancelledInLoss: 0,
@@ -214,6 +219,13 @@ function calculateResultsSummary(ordersWithResults: DetailedBackTrackResult[]) {
   return summary;
 }
 
+function writeAccountSimulationResultsSummary(result: AccountState) {
+  console.log(`Starting balance: ${result.initialBalance}`);
+  console.log(`End balance: ${result.availableBalance}`);
+  console.log(`In orders: ${result.balanceInOrders}`);
+  console.log(`Realized profit: ${result.closedOrdersProfit}`);
+}
+
 function writeResultsSummary(ordersWithResults: DetailedBackTrackResult[]) {
   const formatPct = (fractPct: number) => (fractPct * 100).toFixed(2);
   const summary = calculateResultsSummary(ordersWithResults);
@@ -227,6 +239,7 @@ function writeResultsSummary(ordersWithResults: DetailedBackTrackResult[]) {
   console.log(`Count Cancelled profitable: ${summary.countCancelledProfitable}`);
   console.log(`Count Cancelled in loss: ${summary.countCancelledInLoss}`);
   console.log(`Count hit all TPs: ${summary.countFullTp}`);
+  console.log(`Count still open: ${summary.countOpen}`);
 
   summary.tps.forEach((tp, index) => {
     console.log(`TP${index + 1}: ${tp.count} (${formatPct(tp.percentage)}%)`);
@@ -291,6 +304,34 @@ export async function backtrackCommand(args: BackTrackArgs) {
   writeResultsSummary(ordersWithResults);
   await writeResultsToFile(ordersWithResults, cornixConfig, args);
 }
+
+export async function backtrackInAccountModeCommand(args: BackTrackArgs) {
+    if (args.debug) {
+        console.log("Arguments: ");
+        console.log(JSON.stringify(args));
+    }
+
+    if (args.locale) {
+        durationFormatter = createDurationFormatter(args.locale, 'narrow');
+    }
+
+    let cornixConfig = await getCornixConfigFromFileOrDefault(args.cornixConfigFile, defaultCornixConfig);
+    cornixConfig = args?.detailedLog
+        ? { ...cornixConfig, trailingStop: { type: "without" } }
+        : cornixConfig;
+
+    const input = await getInput(args);
+    const orders = getFilteredOrders(input.orders, args);
+
+    const account = new AccountSimulation(args, orders, cornixConfig);
+    const result = await account.runBacktrackingInAccountMode();
+    const ordersWithResults = account.getOrdersReport();
+
+    writeAccountSimulationResultsSummary(result);
+    writeResultsSummary(ordersWithResults);
+    await writeResultsToFile(ordersWithResults, cornixConfig, args);
+}
+
 
 export async function runBacktracking(
     args: BackTrackArgs,
@@ -499,6 +540,7 @@ export interface AccountState {
   activeOrders: OrderState[];
   finishedOrders: OrderState[];
 
+  initialBalance: number;
   availableBalance: number;
   balanceInOrders: number;
 
@@ -533,6 +575,7 @@ class AccountSimulation {
     skippedOrders: [],
     finishedOrders: [],
 
+    initialBalance: 0,
     availableBalance: 0,
     balanceInOrders: 0,
     openOrdersProfit: 0,
@@ -551,15 +594,21 @@ class AccountSimulation {
   };
 
   constructor(args: BackTrackArgs, orders: Order[], cornixConfig: CornixConfiguration) {
-    this.state.startTime = Math.min(...orders.map(x => x.date.getTime()));
+    this.state.startTime = Math.min(...orders.map(x => x.date.setSeconds(0, 0)));
     this.state.currentTime = this.state.startTime;
     this.state.endTime = new Date().getTime();
     this.state.config = cornixConfig;
+
+    this.state.config.amount = { type: 'percentage', percentage: 2 };
+
     this.state.args = args;
 
-    this.state.maxActiveOrders = cornixConfig.maxActiveOrders ?? Infinity;
+    const maxActiveOrders = args.maxActiveOrders ?? cornixConfig.maxActiveOrders ?? Infinity;
+    this.state.maxActiveOrders = maxActiveOrders == -1 ? Infinity : maxActiveOrders;
+    this.state.availableBalance = args.accountInitialBalance ?? 1000;
 
     this.state.remainingOrders = orders.toSorted((x, y) => x.date.getTime() - y.date.getTime());
+    this.state.initialBalance = this.state.availableBalance;
   }
 
   async runBacktrackingInAccountMode() {
@@ -573,8 +622,14 @@ class AccountSimulation {
 
     performance.mark("backtrack_start");
 
-    let realizedPnlPerDay = 0;
-    let realizedProfitPerDay = 0;
+    let currentDayStats = {
+      realizedProfitPerDay: 0,
+      unrealizedProfitPerDay: 0,
+      realizedPnlPerDay: 0,
+      day: new Date(currentDay),
+    };
+
+    const msInMinute = 60 * 1000;
 
     while (this.state.currentTime < this.state.endTime) {
       try {
@@ -585,11 +640,14 @@ class AccountSimulation {
           previousDay = currentDay;
           currentDay = this.state.currentTime;
 
-          const stats = { realizedProfitPerDay, realizedPnlPerDay, day: new Date(new Date(previousDay).setUTCHours(0, 0, 0, 0)) };
-          dailyStats.push(stats);
+          dailyStats.push(currentDayStats);
 
-          realizedProfitPerDay = 0;
-          realizedPnlPerDay = 0;
+          currentDayStats = {
+            realizedProfitPerDay: 0,
+            realizedPnlPerDay: 0,
+            unrealizedProfitPerDay: 0,
+            day: new Date(new Date(previousDay).setUTCHours(0, 0, 0, 0)),
+          };
 
           console.log(`Day ${dailyStats.length} stats: Profit: ${stats.realizedProfitPerDay}, PnL: ${stats.realizedPnlPerDay}`);
         }
@@ -599,8 +657,10 @@ class AccountSimulation {
 
         let currentPnl = 0;
 
+        currentDayStats.unrealizedProfitPerDay = 0;
+        
         for (const order of activeOrdersCopy) {
-          const exchange = order.order.exchange ?? 'binance';
+          const exchange = getExchange(order.order.exchange ?? '') ?? 'binance';
           const tradeEntry = await this.loadTradeDataForSymbol(order.order.coin, this.state.currentTime, exchange);
           if (tradeEntry == null) {
             console.log(`Missing trade data for ${order.order.coin}`);
@@ -622,7 +682,7 @@ class AccountSimulation {
             this.state.openOrdersRealizedProfit += currentlyRealizedProfit;
             this.state.availableBalance += currentlyRealizedProfit;
 
-            realizedProfitPerDay += currentlyRealizedProfit;
+            currentDayStats.realizedProfitPerDay += currentlyRealizedProfit;
           }
 
           currentPnl += order.state.pnl;
@@ -634,12 +694,16 @@ class AccountSimulation {
             this.state.closedOrdersProfit += order.state.profit;
 
             this.state.finishedOrders.push(order);
-            this.state.activeOrders.slice(this.state.activeOrders.indexOf(order), 1);
+            this.state.activeOrders.splice(this.state.activeOrders.indexOf(order), 1);
+          } else {
+            currentDayStats.unrealizedProfitPerDay += order.state.unrealizedProfit;
           }
         }
 
         this.state.largestAccountDrawdown = Math.min(this.state.largestAccountDrawdown, currentPnl);
         this.state.largestAccountGain = Math.max(this.state.largestAccountGain, currentPnl);
+
+        currentDayStats.realizedPnlPerDay = currentPnl;
 
         // todo: implement limit of running orders
 
@@ -648,6 +712,9 @@ class AccountSimulation {
         // TODO: Add daily PnL
       } catch (exc) {
 
+      }
+      finally {
+        this.state.currentTime += msInMinute;
       }
 
       // if (this.state.args.debug) {
@@ -796,7 +863,9 @@ class AccountSimulation {
       return data;
     }
 
-    const tradeData = await loadDataFromCache(symbol, exchange, interval, new Date(date));
+    const dayStart = new Date(date).setUTCHours(0, 0, 0, 0);
+
+    const tradeData = await getTradeDataWithCache(symbol, interval, new Date(dayStart), exchange);
     const filteredTradeData = tradeData?.filter(x => x.openTime >= date) ?? [];
 
     const exchangeData = mapGetOrCreate(this.tradeData, exchange, () => new Map<string, Map<number, TradeData>>());
@@ -821,3 +890,13 @@ class AccountSimulation {
  *
  * Maybe introduce class for Account backtracking.
  */
+
+function getExchange(exchange: string) {
+  if (exchange.match(/bybit/i)) {
+    return 'bybit';
+  } else if (exchange.match(/binance/i)) {
+    return 'binance';
+  }
+
+  return null;
+}

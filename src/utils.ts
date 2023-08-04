@@ -1,5 +1,5 @@
 ﻿export function getDateFromTimestampOrDateStr(date: number|string) {
-  const timestamp = typeof date === 'string' 
+  const timestamp = typeof date === 'string'
     ? parseInt(date)
     : date;
 
@@ -26,7 +26,7 @@ export function createDurationFormatter(locale: string, unitDisplay: 'long'|'sho
     fmtSeconds = timeUnitFormatter(locale, 'second', unitDisplay),
     fmtMilliseconds = timeUnitFormatter(locale, 'millisecond', unitDisplay),
     fmtList = new Intl.ListFormat(locale, { style: 'long', type: 'conjunction' });
-  
+
   return (milliseconds: number) => {
     let days, hours, minutes, seconds;
     [days, milliseconds] = divMod(milliseconds, 864e5);

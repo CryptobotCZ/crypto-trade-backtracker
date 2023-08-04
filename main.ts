@@ -1,8 +1,8 @@
 import yargs from "https://deno.land/x/yargs/deno.ts";
 import { Arguments } from "https://deno.land/x/yargs/deno-types.ts";
 import {
-  backtrackCommand,
-  defaultCornixConfig,
+    backtrackCommand, backtrackInAccountModeCommand,
+    defaultCornixConfig,
 } from "./src/commands/backtrack.ts";
 import { global } from "./src/globals.ts";
 import { updateCacheStructure } from "./src/commands/update-cache.ts";
@@ -115,6 +115,26 @@ const addCachePath = (yargs: YargsInstance) => {
   });
 };
 
+const addAccountMode = (yargs: any) => {
+  yargs.option("accountMode", {
+    describe: "Use account mode for backtracking and simulate the trade",
+    type: "bool",
+    default: false,
+  });
+
+  yargs.option("accountInitialBalance", {
+    describe: "Set account initial balance for account mode",
+    type: "number",
+    default: 1000
+  });
+
+  yargs.option("maxActiveOrders", {
+      describe: "Set maximal active orders for account mode",
+      type: "number",
+      default: -1
+  });
+};
+
 const addOutputFormattingArgs = (yargs: any) => {
   yargs.option('anonymize');
   yargs.option('locale', {
@@ -147,10 +167,16 @@ const input = yargs(Deno.args)
       addDateRanges(yargs);
       addOutputFormattingArgs(yargs);
       addCachePath(yargs);
+      addAccountMode(yargs);
     },
     async (argv: Arguments) => {
       global.inputArguments = argv;
-      await backtrackCommand(argv as any);
+
+      const backtrack = argv.accountMode
+          ? backtrackInAccountModeCommand
+          : backtrackCommand;
+
+      await backtrack(argv as any);
     },
   )
   .command(

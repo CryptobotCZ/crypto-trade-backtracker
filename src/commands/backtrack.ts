@@ -11,6 +11,7 @@ import {
 import {
   ApiError,
   getTradeDataWithCache,
+  loadDataFromCache,
   TradeData,
 } from "../exchanges/exchanges.ts";
 import {CornixConfiguration, getFlattenedCornixConfig, validateOrder} from "../cornix.ts";
@@ -403,6 +404,201 @@ export async function runBacktracking(
   return ordersWithResults;
 }
 
+export async function loadTradeDataForAllSymbols(symbols: string[], startDate: number, exchange = 'binance', interval = '1m', count = 1440) {
+  const promises = symbols.map(async coin => {
+    const tradeData = await loadDataFromCache(coin, exchange, interval, new Date(startDate));
+
+    return { coin, tradeData };
+  });
+  const data = await Promise.all(promises);
+
+  return data.reduce((map, x) => map.set(x.coin, x.tradeData), new Map<string, TradeData[] | null>());
+}
+
+export async function runBacktrackingInAccountMode(
+  args: BackTrackArgs,
+  orders: Order[],
+  tradesMap: Map<Order, PreBacktrackedData>,
+  cornixConfig: CornixConfiguration
+) {
+  let count = 0;
+  const ordersWithResults = [];
+  const invalidCoins = [];
+
+  const startTime = Math.min(...orders.map(x => x.date.getTime()));
+  let previousTime = 0;
+  let currentTime = startTime;
+  const endTime = new Date().getTime();
+
+  let currentDay = new Date(new Date(currentTime).setUTCHours(0, 0, 0, 0)).getTime();
+  let previousDay = new Date(new Date(currentTime).setUTCHours(0, 0, 0, 0) - 60 * 60 * 24 * 1000).getTime();
+
+  const remainingOrders = orders.toSorted((x, y) => x.date.getTime() - y.date.getTime());
+  const activeOrders = [];
+  const skippedOrders = [];
+  const finishedOrders = [];
+
+  const maxActiveOrders = cornixConfig.maxActiveOrders ?? Infinity;
+  const minuteInMs = 60 * 1000;
+  const msInDay = minuteInMs * 60 * 24;
+
+  let coinTradeDataCache = new Map<string, TradeData[] | null>();
+
+  performance.mark("backtrack_start");
+
+  while (currentTime < endTime) {
+    try {
+      // First go through remaining orders and open orders which should be opened at currentTime
+      for (const order of remainingOrders) {
+        if ((order.date.getTime() - currentTime) <= minuteInMs) {
+          if (activeOrders.length >= maxActiveOrders) {
+            console.log("Max active orders limit reached - skipping order...");
+            skippedOrders.push(order);
+          } else {
+            const { state, events } = getBackTrackEngine(cornixConfig, order, {
+              detailedLog: args.detailedLog,
+            });
+
+            const updatedCornixConfig = order.config != null
+              ? getFlattenedCornixConfig(cornixConfig, order.config)
+              : cornixConfig;
+
+            if (args.debug) {
+              console.log(`Backtracking trade ${order.coin} ${order.direction} ${order.date}`);
+              console.log(JSON.stringify(order));
+            }
+
+            if (!validateOrder(order)) {
+              console.log(JSON.stringify(order, undefined, 2));
+              console.log('Invalid order, skipping...');
+            } else {
+              activeOrders.push({
+                order,
+                state,
+                events,
+                config: updatedCornixConfig,
+              });
+            }
+          }
+
+          remainingOrders.splice(remainingOrders.indexOf(order), 1);
+        }
+      }
+
+
+      if (currentTime % msInDay === 0) {
+        // probably new day, load new data for all coins
+        previousDay = currentDay;
+        currentDay = currentTime;
+
+        const activeSymbols = [ ...new Set(activeOrders.map(x => x.order.coin)) ];
+        coinTradeDataCache = await loadTradeDataForAllSymbols(activeSymbols, currentDay);
+      }
+
+      // Then process all open orders
+      const activeOrdersCopy = [ ...activeOrders ]; // prevent concurrent modification
+      for (const order of activeOrdersCopy) {
+        const tradeData = coinTradeDataCache.get(order.order.coin) ?? null;
+        if (tradeData == null) {
+          console.log(`Missing trade data for ${order.order.coin}`);
+          continue;
+        }
+
+        // TODO: This should be sufficient but actually might be wrong
+        const tradeEntry = tradeData[0];
+        tradeData.splice(1, 1);
+
+        let previousState = order.state;
+
+        do {
+          previousState = order.state;
+          order.state = order.state.updateState(tradeEntry);
+        } while (order.state != previousState);
+
+        if (order.state.isClosed) {
+          finishedOrders.push(order);
+          activeOrders.slice(activeOrders.indexOf(order), 1);
+        }
+      }
+
+      // todo: implement limit of running orders
+
+      // TODO: Add largest consecutive drawdown
+      // TODO: Add largest gain
+      // TODO: Add daily PnL
+    } catch (exc) {
+
+    }
+
+    count++;
+
+    if (args.debug) {
+      const progressPct = (count / orders.length * 100).toFixed(2);
+      console.log(`Progress: ${count} / ${orders.length} = ${progressPct}%`);
+    }
+  }
+
+  performance.mark("backtrack_end");
+  const time = performance.measure(
+    "backtracking",
+    "backtrack_start",
+    "backtrack_end",
+  );
+
+  if (args.debug) {
+    console.log(`It took ${time.duration}ms`);
+  }
+
+  for (const order of orders) {
+    try {
+      if (args.debug) {
+        const eventsWithoutCross = result.events
+          .filter(x => x.type !== 'cross')
+          .filter(x => x.level !== 'verbose' || args.verbose)
+          .map(x => ({...x, date: new Date(x.timestamp)}));
+        eventsWithoutCross.forEach((event) => console.log(JSON.stringify(event)));
+      }
+
+      const results = result?.state?.info;
+      writeSingleTradeResult(results);
+
+      let sortedUniqueCrosses: any[] = [];
+
+      if (args.detailedLog) {
+        sortedUniqueCrosses = getSortedUniqueCrosses(result);
+      }
+
+      if (result != null) {
+        ordersWithResults.push({
+          order: result.state.order,
+          info: result.state.info,
+          sortedUniqueCrosses: sortedUniqueCrosses.map((x) => {
+            const cloneOfX = { ...x };
+            delete cloneOfX.tradeData;
+
+            return cloneOfX;
+          }),
+          events: result.events.filter(x => x.level !== 'verbose' && x.type !== 'cross'),
+          tradeData: sortedUniqueCrosses.map((x) => x.tradeData),
+        });
+      }
+    } catch (error) {
+      console.error(error);
+
+      if (error instanceof ApiError) {
+        if (error.statusCode === 404 || error.statusCode === 400) {
+          invalidCoins.push(order.coin);
+        }
+      }
+    }
+  }
+
+  console.log("Invalid coin tickers: ");
+  console.log(invalidCoins.join(", "));
+
+  return ordersWithResults;
+}
+
 async function backTrackSingleOrder(
   args: BackTrackArgs,
   order: Order,
@@ -473,3 +669,63 @@ async function backtrackWithExchangeDataUntilTradeCloseOrCurrentDate(
 
   return { state, events };
 }
+
+async function backtrackSingleStep(
+  args: BackTrackArgs,
+  order: Order,
+  cornixConfig: CornixConfiguration,
+): Promise<BackTrackResult> {
+  // always get full day data
+  let currentDate = new Date(new Date(order.date.getTime()).setUTCHours(0, 0, 0, 0));
+  let { state, events } = getBackTrackEngine(cornixConfig, order, {
+    detailedLog: args.detailedLog,
+  });
+
+  do {
+    const currentTradeData = await getTradeDataWithCache(
+      order.coin,
+      "1m",
+      currentDate,
+      args.exchange ?? 'binance'
+    );
+
+    if (currentTradeData.length === 0) {
+      break;
+    }
+
+    for (const tradeEntry of currentTradeData) {
+      let previousState = state;
+
+      do {
+        previousState = state;
+        state = state.updateState(tradeEntry);
+      } while (state != previousState);
+
+      if (state.isClosed) {
+        break;
+      }
+    }
+
+    if (state.isClosed) {
+      break;
+    }
+
+    currentDate = new Date(currentTradeData.at(-1)?.closeTime!);
+  } while (true);
+
+  return { state, events };
+}
+
+
+/**
+ * Ideas:
+ *
+ * Rework the loading of data in the loop.
+ *
+ * Optimize cache for loading data - load based on startDate - check if it contains data for coin, if yes, good.
+ * If not, load, but load since the startDate, remove the previous data.
+ *
+ * Move processing single order into separate function.
+ *
+ * Maybe introduce class for Account backtracking.
+ */

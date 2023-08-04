@@ -76,6 +76,7 @@ export interface CornixConfiguration {
     stopTimeoutMinutes?: number;
     stopType?: "Limit" | "Market";
   };
+  maxActiveOrders?: number;
 }
 
 export function getEntryZoneTargets(borders: number[], countTargets: number, direction: 'SHORT'|'LONG') {

@@ -1,3 +1,4 @@
+import { TradeData } from './../exchanges/binance-api';
 import { writeJson } from "https://deno.land/x/jsonfile@1.0.0/write_json.ts";
 import {exportCsv, exportCsvInCornixFormat} from "../output/csv.ts";
 
@@ -20,7 +21,8 @@ import {
     createDurationFormatter,
     getDateFromTimestampOrDateStr,
     getFormattedTradeDuration,
-    getTradeDuration
+    getTradeDuration,
+    mapGetOrCreate,
 } from "../utils.ts";
 
 
@@ -404,201 +406,6 @@ export async function runBacktracking(
   return ordersWithResults;
 }
 
-export async function loadTradeDataForAllSymbols(symbols: string[], startDate: number, exchange = 'binance', interval = '1m', count = 1440) {
-  const promises = symbols.map(async coin => {
-    const tradeData = await loadDataFromCache(coin, exchange, interval, new Date(startDate));
-
-    return { coin, tradeData };
-  });
-  const data = await Promise.all(promises);
-
-  return data.reduce((map, x) => map.set(x.coin, x.tradeData), new Map<string, TradeData[] | null>());
-}
-
-export async function runBacktrackingInAccountMode(
-  args: BackTrackArgs,
-  orders: Order[],
-  tradesMap: Map<Order, PreBacktrackedData>,
-  cornixConfig: CornixConfiguration
-) {
-  let count = 0;
-  const ordersWithResults = [];
-  const invalidCoins = [];
-
-  const startTime = Math.min(...orders.map(x => x.date.getTime()));
-  let previousTime = 0;
-  let currentTime = startTime;
-  const endTime = new Date().getTime();
-
-  let currentDay = new Date(new Date(currentTime).setUTCHours(0, 0, 0, 0)).getTime();
-  let previousDay = new Date(new Date(currentTime).setUTCHours(0, 0, 0, 0) - 60 * 60 * 24 * 1000).getTime();
-
-  const remainingOrders = orders.toSorted((x, y) => x.date.getTime() - y.date.getTime());
-  const activeOrders = [];
-  const skippedOrders = [];
-  const finishedOrders = [];
-
-  const maxActiveOrders = cornixConfig.maxActiveOrders ?? Infinity;
-  const minuteInMs = 60 * 1000;
-  const msInDay = minuteInMs * 60 * 24;
-
-  let coinTradeDataCache = new Map<string, TradeData[] | null>();
-
-  performance.mark("backtrack_start");
-
-  while (currentTime < endTime) {
-    try {
-      // First go through remaining orders and open orders which should be opened at currentTime
-      for (const order of remainingOrders) {
-        if ((order.date.getTime() - currentTime) <= minuteInMs) {
-          if (activeOrders.length >= maxActiveOrders) {
-            console.log("Max active orders limit reached - skipping order...");
-            skippedOrders.push(order);
-          } else {
-            const { state, events } = getBackTrackEngine(cornixConfig, order, {
-              detailedLog: args.detailedLog,
-            });
-
-            const updatedCornixConfig = order.config != null
-              ? getFlattenedCornixConfig(cornixConfig, order.config)
-              : cornixConfig;
-
-            if (args.debug) {
-              console.log(`Backtracking trade ${order.coin} ${order.direction} ${order.date}`);
-              console.log(JSON.stringify(order));
-            }
-
-            if (!validateOrder(order)) {
-              console.log(JSON.stringify(order, undefined, 2));
-              console.log('Invalid order, skipping...');
-            } else {
-              activeOrders.push({
-                order,
-                state,
-                events,
-                config: updatedCornixConfig,
-              });
-            }
-          }
-
-          remainingOrders.splice(remainingOrders.indexOf(order), 1);
-        }
-      }
-
-
-      if (currentTime % msInDay === 0) {
-        // probably new day, load new data for all coins
-        previousDay = currentDay;
-        currentDay = currentTime;
-
-        const activeSymbols = [ ...new Set(activeOrders.map(x => x.order.coin)) ];
-        coinTradeDataCache = await loadTradeDataForAllSymbols(activeSymbols, currentDay);
-      }
-
-      // Then process all open orders
-      const activeOrdersCopy = [ ...activeOrders ]; // prevent concurrent modification
-      for (const order of activeOrdersCopy) {
-        const tradeData = coinTradeDataCache.get(order.order.coin) ?? null;
-        if (tradeData == null) {
-          console.log(`Missing trade data for ${order.order.coin}`);
-          continue;
-        }
-
-        // TODO: This should be sufficient but actually might be wrong
-        const tradeEntry = tradeData[0];
-        tradeData.splice(1, 1);
-
-        let previousState = order.state;
-
-        do {
-          previousState = order.state;
-          order.state = order.state.updateState(tradeEntry);
-        } while (order.state != previousState);
-
-        if (order.state.isClosed) {
-          finishedOrders.push(order);
-          activeOrders.slice(activeOrders.indexOf(order), 1);
-        }
-      }
-
-      // todo: implement limit of running orders
-
-      // TODO: Add largest consecutive drawdown
-      // TODO: Add largest gain
-      // TODO: Add daily PnL
-    } catch (exc) {
-
-    }
-
-    count++;
-
-    if (args.debug) {
-      const progressPct = (count / orders.length * 100).toFixed(2);
-      console.log(`Progress: ${count} / ${orders.length} = ${progressPct}%`);
-    }
-  }
-
-  performance.mark("backtrack_end");
-  const time = performance.measure(
-    "backtracking",
-    "backtrack_start",
-    "backtrack_end",
-  );
-
-  if (args.debug) {
-    console.log(`It took ${time.duration}ms`);
-  }
-
-  for (const order of orders) {
-    try {
-      if (args.debug) {
-        const eventsWithoutCross = result.events
-          .filter(x => x.type !== 'cross')
-          .filter(x => x.level !== 'verbose' || args.verbose)
-          .map(x => ({...x, date: new Date(x.timestamp)}));
-        eventsWithoutCross.forEach((event) => console.log(JSON.stringify(event)));
-      }
-
-      const results = result?.state?.info;
-      writeSingleTradeResult(results);
-
-      let sortedUniqueCrosses: any[] = [];
-
-      if (args.detailedLog) {
-        sortedUniqueCrosses = getSortedUniqueCrosses(result);
-      }
-
-      if (result != null) {
-        ordersWithResults.push({
-          order: result.state.order,
-          info: result.state.info,
-          sortedUniqueCrosses: sortedUniqueCrosses.map((x) => {
-            const cloneOfX = { ...x };
-            delete cloneOfX.tradeData;
-
-            return cloneOfX;
-          }),
-          events: result.events.filter(x => x.level !== 'verbose' && x.type !== 'cross'),
-          tradeData: sortedUniqueCrosses.map((x) => x.tradeData),
-        });
-      }
-    } catch (error) {
-      console.error(error);
-
-      if (error instanceof ApiError) {
-        if (error.statusCode === 404 || error.statusCode === 400) {
-          invalidCoins.push(order.coin);
-        }
-      }
-    }
-  }
-
-  console.log("Invalid coin tickers: ");
-  console.log(invalidCoins.join(", "));
-
-  return ordersWithResults;
-}
-
 async function backTrackSingleOrder(
   args: BackTrackArgs,
   order: Order,
@@ -670,50 +477,335 @@ async function backtrackWithExchangeDataUntilTradeCloseOrCurrentDate(
   return { state, events };
 }
 
-async function backtrackSingleStep(
+export interface OrderState {
+  order: Order;
+  state: AbstractState;
+  events: any[];
+  config: CornixConfiguration;
+}
+
+export interface SkippedOrder {
+  reason: string;
+  order: Order;
+}
+
+export interface AccountState {
+  startTime: number;
+  endTime: number;
+  previousTime: number;
+  currentTime: number;
+  remainingOrders: Order[];
+  skippedOrders: SkippedOrder[];
+  activeOrders: OrderState[];
+  finishedOrders: OrderState[];
+
+  availableBalance: number;
+  balanceInOrders: number;
+
+  openOrdersProfit: number;
+  openOrdersUnrealizedProfit: number;
+  openOrdersRealizedProfit: number;
+  closedOrdersProfit: number;
+
+  largestAccountDrawdown: number;
+  largestAccountGain: number;
+  largestOrderDrawdown: number;
+  largestOrderGain: number;
+
+  config: CornixConfiguration;
+
+  maxActiveOrders: number;
   args: BackTrackArgs,
-  order: Order,
-  cornixConfig: CornixConfiguration,
-): Promise<BackTrackResult> {
-  // always get full day data
-  let currentDate = new Date(new Date(order.date.getTime()).setUTCHours(0, 0, 0, 0));
-  let { state, events } = getBackTrackEngine(cornixConfig, order, {
-    detailedLog: args.detailedLog,
-  });
+}
 
-  do {
-    const currentTradeData = await getTradeDataWithCache(
-      order.coin,
-      "1m",
-      currentDate,
-      args.exchange ?? 'binance'
-    );
+class AccountSimulation {
+  // exchange, coin, date, trade-data
+  private tradeData = new Map<string, Map<string, Map<number, TradeData>>>();
 
-    if (currentTradeData.length === 0) {
-      break;
+  private state: AccountState = {
+    startTime: 0,
+    previousTime: -Infinity,
+    endTime: 0,
+    currentTime: 0,
+
+    remainingOrders: [],
+    activeOrders: [],
+    skippedOrders: [],
+    finishedOrders: [],
+
+    availableBalance: 0,
+    balanceInOrders: 0,
+    openOrdersProfit: 0,
+    openOrdersUnrealizedProfit: 0,
+    openOrdersRealizedProfit: 0,
+    closedOrdersProfit: 0,
+
+    largestAccountDrawdown: Infinity,
+    largestAccountGain: -Infinity,
+    largestOrderDrawdown: Infinity,
+    largestOrderGain: -Infinity,
+
+    config: null as any,
+    maxActiveOrders: Infinity,
+    args: null as any,
+  };
+
+  constructor(args: BackTrackArgs, orders: Order[], cornixConfig: CornixConfiguration) {
+    this.state.startTime = Math.min(...orders.map(x => x.date.getTime()));
+    this.state.currentTime = this.state.startTime;
+    this.state.endTime = new Date().getTime();
+    this.state.config = cornixConfig;
+    this.state.args = args;
+
+    this.state.maxActiveOrders = cornixConfig.maxActiveOrders ?? Infinity;
+
+    this.state.remainingOrders = orders.toSorted((x, y) => x.date.getTime() - y.date.getTime());
+  }
+
+  async runBacktrackingInAccountMode() {
+    const dailyStats = [];
+
+    let currentDay = new Date(new Date(this.state.currentTime).setUTCHours(0, 0, 0, 0)).getTime();
+    let previousDay = new Date(new Date(this.state.currentTime).setUTCHours(0, 0, 0, 0) - 60 * 60 * 24 * 1000).getTime();
+
+    const minuteInMs = 60 * 1000;
+    const msInDay = minuteInMs * 60 * 24;
+
+    performance.mark("backtrack_start");
+
+    let realizedPnlPerDay = 0;
+    let realizedProfitPerDay = 0;
+
+    while (this.state.currentTime < this.state.endTime) {
+      try {
+        this.updateActiveOrders();
+
+        if (this.state.currentTime % msInDay === 0) {
+          // probably new day, write new daily stats
+          previousDay = currentDay;
+          currentDay = this.state.currentTime;
+
+          const stats = { realizedProfitPerDay, realizedPnlPerDay, day: new Date(new Date(previousDay).setUTCHours(0, 0, 0, 0)) };
+          dailyStats.push(stats);
+
+          realizedProfitPerDay = 0;
+          realizedPnlPerDay = 0;
+
+          console.log(`Day ${dailyStats.length} stats: Profit: ${stats.realizedProfitPerDay}, PnL: ${stats.realizedPnlPerDay}`);
+        }
+
+        // Then process all open orders
+        const activeOrdersCopy = [ ...this.state.activeOrders ]; // prevent concurrent modification
+
+        let currentPnl = 0;
+
+        for (const order of activeOrdersCopy) {
+          const exchange = order.order.exchange ?? 'binance';
+          const tradeEntry = await this.loadTradeDataForSymbol(order.order.coin, this.state.currentTime, exchange);
+          if (tradeEntry == null) {
+            console.log(`Missing trade data for ${order.order.coin}`);
+            continue;
+          }
+
+          const initialState = order.state;
+          let previousState = order.state;
+
+          do {
+            previousState = order.state;
+            order.state = order.state.updateState(tradeEntry);
+          } while (order.state != previousState);
+
+          if (initialState.realizedProfit < order.state.realizedProfit) {
+            // todo: might be missing amount allocated to order
+            // todo: check behavior for SL
+            const currentlyRealizedProfit = order.state.realizedProfit - initialState.realizedProfit;
+            this.state.openOrdersRealizedProfit += currentlyRealizedProfit;
+            this.state.availableBalance += currentlyRealizedProfit;
+
+            realizedProfitPerDay += currentlyRealizedProfit;
+          }
+
+          currentPnl += order.state.pnl;
+
+          this.state.largestOrderDrawdown = Math.min(this.state.largestOrderDrawdown, order.state.pnl);
+          this.state.largestOrderGain = Math.max(this.state.largestOrderGain, order.state.pnl);
+
+          if (order.state.isClosed) {
+            this.state.closedOrdersProfit += order.state.profit;
+
+            this.state.finishedOrders.push(order);
+            this.state.activeOrders.slice(this.state.activeOrders.indexOf(order), 1);
+          }
+        }
+
+        this.state.largestAccountDrawdown = Math.min(this.state.largestAccountDrawdown, currentPnl);
+        this.state.largestAccountGain = Math.max(this.state.largestAccountGain, currentPnl);
+
+        // todo: implement limit of running orders
+
+        // TODO: Add largest consecutive drawdown
+        // TODO: Add largest gain
+        // TODO: Add daily PnL
+      } catch (exc) {
+
+      }
+
+      // if (this.state.args.debug) {
+      //   const progressPct = (count / orders.length * 100).toFixed(2);
+      //   console.log(`Progress: ${count} / ${orders.length} = ${progressPct}%`);
+      // }
     }
 
-    for (const tradeEntry of currentTradeData) {
-      let previousState = state;
+    performance.mark("backtrack_end");
+    const time = performance.measure(
+      "backtracking",
+      "backtrack_start",
+      "backtrack_end",
+    );
 
-      do {
-        previousState = state;
-        state = state.updateState(tradeEntry);
-      } while (state != previousState);
+    if (this.state.args.debug) {
+      console.log(`It took ${time.duration}ms`);
+    }
 
-      if (state.isClosed) {
-        break;
+    return this.state;
+  }
+
+  getOrdersReport() {
+    const ordersWithResults = [];
+
+    for (const result of this.state.finishedOrders) {
+      if (this.state.args.debug) {
+        const eventsWithoutCross = result.events
+          .filter(x => x.type !== 'cross')
+          .filter(x => x.level !== 'verbose' || this.state.args.verbose)
+          .map(x => ({...x, date: new Date(x.timestamp)}));
+        eventsWithoutCross.forEach((event) => console.log(JSON.stringify(event)));
+      }
+
+      const results = result?.state?.info;
+      writeSingleTradeResult(results);
+
+      let sortedUniqueCrosses: any[] = [];
+
+      if (this.state.args.detailedLog) {
+        sortedUniqueCrosses = getSortedUniqueCrosses(result);
+      }
+
+      if (result != null) {
+        ordersWithResults.push({
+          order: result.state.order,
+          info: result.state.info,
+          sortedUniqueCrosses: sortedUniqueCrosses.map((x) => {
+            const cloneOfX = { ...x };
+            delete cloneOfX.tradeData;
+
+            return cloneOfX;
+          }),
+          events: result.events.filter(x => x.level !== 'verbose' && x.type !== 'cross'),
+          tradeData: sortedUniqueCrosses.map((x) => x.tradeData),
+        });
       }
     }
 
-    if (state.isClosed) {
-      break;
+    return ordersWithResults;
+  }
+
+  updateActiveOrders() {
+    const minuteInMs = 60 * 1000;
+
+    // First go through remaining orders and open orders which should be opened at currentTime
+    for (const order of this.state.remainingOrders) {
+      if ((order.date.getTime() - this.state.currentTime) <= minuteInMs) {
+        if (this.state.activeOrders.length >= this.state.maxActiveOrders) {
+          console.log("Max active orders limit reached - skipping order...");
+          this.state.skippedOrders.push({ order, reason: 'max active orders limit reached'} );
+        } else {
+          this.activateOrder(order);
+        }
+
+        this.state.remainingOrders.splice(this.state.remainingOrders.indexOf(order), 1);
+      }
+    }
+  }
+
+  activateOrder(order: Order) {
+    const cornixConfig = this.state.config;
+
+    const orderAmountConfig = order.config?.amount ?? cornixConfig.amount;
+    let orderAmount = 0;
+
+    if (typeof orderAmountConfig === 'number') {
+      orderAmount = orderAmountConfig;
+    } else {
+      if (orderAmountConfig.type === 'percentage') {
+        orderAmount = (orderAmountConfig.percentage * this.state.availableBalance) / 100;
+      }
     }
 
-    currentDate = new Date(currentTradeData.at(-1)?.closeTime!);
-  } while (true);
+    if (orderAmount > this.state.availableBalance) {
+      console.log('Insufficient balance, skipping order...');
+      return;
+    }
 
-  return { state, events };
+    this.state.availableBalance -= orderAmount;
+    this.state.balanceInOrders += orderAmount;
+
+    const updatedCornixConfig = getFlattenedCornixConfig(cornixConfig, order.config ?? {} as any, {
+      amount: orderAmount,
+    } as any);
+
+    const { state, events } = getBackTrackEngine(updatedCornixConfig, order, {
+      detailedLog: this.state.args.detailedLog,
+    });
+
+    if (this.state.args.debug) {
+      console.log(`Backtracking trade ${order.coin} ${order.direction} ${order.date}`);
+      console.log(JSON.stringify(order));
+    }
+
+    if (!validateOrder(order)) {
+      console.log(JSON.stringify(order, undefined, 2));
+      console.log('Invalid order, skipping...');
+    } else {
+      this.state.activeOrders.push({
+        order,
+        state,
+        events,
+        config: updatedCornixConfig,
+      });
+    }
+  }
+
+  async loadTradeDataForAllSymbols(symbols: string[], startDate: number, exchange = 'binance', interval = '1m', count = 1440) {
+    const promises = symbols.map(async coin => {
+      const tradeData = await loadDataFromCache(coin, exchange, interval, new Date(startDate));
+      const filteredTradeData = tradeData?.filter(x => x.openTime >= startDate) ?? [];
+
+      return { coin, tradeData: filteredTradeData };
+    });
+
+    const data = await Promise.all(promises);
+
+    return data.reduce((map, x) => map.set(x.coin, x.tradeData), new Map<string, TradeData[] | null>());
+  }
+
+  async loadTradeDataForSymbol(symbol: string, date: number, exchange: string, interval = '1m'): Promise<TradeData> {
+    const data = this.tradeData.get(exchange)?.get(symbol)?.get(date) ?? null;
+
+    if (data != null) {
+      return data;
+    }
+
+    const tradeData = await loadDataFromCache(symbol, exchange, interval, new Date(date));
+    const filteredTradeData = tradeData?.filter(x => x.openTime >= date) ?? [];
+
+    const exchangeData = mapGetOrCreate(this.tradeData, exchange, () => new Map<string, Map<number, TradeData>>());
+    const coinData = mapGetOrCreate(exchangeData, symbol, () => new Map<number, TradeData>());
+
+    filteredTradeData.forEach(x => coinData.set(x.openTime, x));
+
+    return coinData.get(date);
+  }
 }
 
 

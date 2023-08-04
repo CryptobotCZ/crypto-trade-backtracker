@@ -58,8 +58,10 @@ export interface TrailingStopBreakevenPercent extends TrailingStopBreakeven {
 
 export type TrailingStop = TrailingStopWithout | TrailingStopMovingTarget | TrailingStopBreakevenTarget | TrailingStopBreakevenPercent;
 
+export type Amount = number | { type: 'percentage', percentage: number } | { type: 'risk-percentage', percentage: number };
+
 export interface CornixConfiguration {
-  amount: number;
+  amount: Amount;
   closeTradeOnTpSlBeforeEntry?: boolean;
   firstEntryGracePct?: number;
   entries: Strategy;

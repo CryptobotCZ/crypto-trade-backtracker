@@ -60,3 +60,15 @@ export function getFormattedTradeDuration(openDate: Date, closeDate: Date|null, 
 
   return result;
 }
+
+
+export function mapGetOrCreate<T, U>(map: Map<T, U>, key: T, create: () => U) {
+  if (map.has(key)) {
+    return map.get(key)!;
+  }
+
+  const value = create();
+  map.set(key, value);
+
+  return value;
+}

@@ -134,7 +134,10 @@ export async function getTradeData(
       }
     }
 
-    return [ ...data.flat() ] as TradeData[];
+    const sortedTradeData = [ ...data.flat() ]
+        .toSorted((x, y) => x.openTime - y.openTime);
+
+    return sortedTradeData;
 }
 
 async function getTradeDataInternal(
@@ -180,7 +183,13 @@ async function getTradeDataInternal(
     throw new ApiError(`Invalid status ${response.status} for coin ${pair}`, response.status);
   }
 
+
   const json = await response.json() as ByBitResponse;
+  
+  if (json.retCode !== 0) {
+      throw new ApiError(json.retMsg, 404);
+  }
+
   return json.result.list
       .map(x => transformArrayToObject(x, interval))
       .toSorted((x, y) => x.openTime - y.openTime);

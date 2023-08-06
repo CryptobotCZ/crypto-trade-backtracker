@@ -10,10 +10,14 @@ import { testSingleEntryPointKeepOpenUnrealizedProfit0, testSingleEntryPointKeep
 import {testOrderCancelledInLoss, testOrderCancelledInProfit} from "./backtrack-test-03-cancellation.ts";
 import {testBacktrackingWithDownloadingData} from "./backtrack-test-04-with-binance-data.ts";
 import {testOrdersInAccountMode} from "./account-mode-test-01.ts";
+import {testGetOrderAmountRiskPercentage} from "../src/cornix_test.ts";
 
 if (Deno.args.indexOf('--debugFromIDE') === -1) {
   Deno.exit(0);
 }
+
+
+testGetOrderAmountRiskPercentage();
 
 await testOrdersInAccountMode();
 await testBacktrackingWithDownloadingData();

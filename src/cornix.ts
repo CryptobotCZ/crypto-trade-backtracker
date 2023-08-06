@@ -285,3 +285,48 @@ export function getFlattenedCornixConfig(...config: CornixConfiguration[]) {
   // TODO: Add something like user override flag
   return config.reduce((flattened, current) => ({ ...flattened, ...current }), {} as CornixConfiguration);
 }
+
+export function getWeightedAverageEntryPrice(order: Order, config: CornixConfiguration) {
+  const entryType = order.entryType ?? config.entryType ?? 'target';
+
+  const direction = order.direction ?? (order.tps[0] > order.entries[0] ? "LONG" : "SHORT");
+  const entries = entryType === 'target'
+      ? order.entries
+      : getEntryZoneTargets(order.entries, config.entryZoneTargets ?? 4, direction);
+
+  if (entryType === 'zone') {
+    order.entryZone = order.entries;
+    order.entries = entries;
+  }
+
+  const remainingEntries = mapPriceTargets(entries, config.entries);
+  return calculateWeightedAverage(remainingEntries);
+}
+
+
+export function getOrderAmount(order: Order, cornixConfig: CornixConfiguration, availableBalance: number) {
+  const orderAmountConfig = order.config?.amount ?? cornixConfig.amount;
+  let orderAmount = 0;
+
+  if (typeof orderAmountConfig === 'number') {
+    orderAmount = orderAmountConfig;
+  } else {
+    const amountInPercentage = (orderAmountConfig.percentage * availableBalance) / 100;
+
+    if (orderAmountConfig.type === 'percentage') {
+      orderAmount = amountInPercentage;
+    } else if (orderAmountConfig.type === 'risk-percentage') {
+      orderAmount = amountInPercentage;
+
+      if (order.sl != null) {
+        const averageEntryPrice = getWeightedAverageEntryPrice(order, cornixConfig);
+        const potentialLossPct = (averageEntryPrice - order.sl) / averageEntryPrice;
+        const riskPct = orderAmountConfig.percentage / 100;
+        const positionSize = (riskPct * availableBalance) / (potentialLossPct * order.leverage);
+        orderAmount = positionSize;
+      }
+    }
+  }
+
+  return orderAmount;
+}

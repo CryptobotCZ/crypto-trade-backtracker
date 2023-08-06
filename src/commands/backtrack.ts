@@ -324,9 +324,7 @@ export async function backtrackInAccountModeCommand(args: BackTrackArgs) {
     const input = await getInput(args);
     const orders = getFilteredOrders(input.orders, args);
 
-    const account = new AccountSimulation(args, orders, cornixConfig);
-    const result = await account.runBacktrackingInAccountMode();
-    const ordersWithResults = account.getOrdersReport();
+    const { account, result, ordersWithResults } = await runBacktrackingInAccountMode(args, orders, cornixConfig);
 
     writeAccountSimulationResultsSummary(result);
     writeResultsSummary(ordersWithResults);

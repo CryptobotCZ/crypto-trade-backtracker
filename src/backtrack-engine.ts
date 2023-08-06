@@ -52,6 +52,9 @@ export interface TradeResult {
   spentAmount: number;
   realizedProfit: number;
   unrealizedProfit: number;
+  boughtCoins: number;
+  averageSalePrice: number;
+  soldAmount: number;
 }
 
 export type LogEvent = any & { type: string };
@@ -208,6 +211,14 @@ export abstract class AbstractState {
     return this.spentAmountWithLev / this.boughtCoins;
   }
 
+  get averageSalePrice() {
+    if (this.soldCoins === 0) {
+      return 0;
+    }
+    
+    return this.saleValue / this.soldCoins;
+  }
+
   get isOpen() {
     return this.state.entries.length > 0;
   }
@@ -225,9 +236,13 @@ export abstract class AbstractState {
       (this.state.sl?.coins ?? 0);
   }
 
-  get saleValue() {
+  get saleValueWithLev() {
     return this.state.takeProfits.reduce((sum, tp) => tp.total + sum, 0) +
       (this.state.sl?.total ?? 0);
+  }
+
+  get saleValue() {
+    return this.saleValueWithLev / this.leverage;
   }
 
   get remainingCoinsCurrentValue() {
@@ -253,7 +268,7 @@ export abstract class AbstractState {
     }
 
     const percentageSold = this.soldCoins / this.boughtCoins;
-    return this.calculateProfit(this.saleValue, percentageSold);
+    return this.calculateProfit(this.saleValueWithLev, percentageSold);
   }
 
   get unrealizedProfit() {
@@ -279,7 +294,7 @@ export abstract class AbstractState {
   }
 
   get profitBasedOnSoldCoins() {
-    const saleValueWithCurrentValue = this.saleValue + this.remainingCoinsCurrentValue;
+    const saleValueWithCurrentValue = this.saleValueWithLev + this.remainingCoinsCurrentValue;
 
     return this.state.order.direction === "LONG"
       ? saleValueWithCurrentValue - this.spentAmountWithLev
@@ -516,9 +531,12 @@ export abstract class AbstractState {
       pnl: this.pnl,
       profit: this.profit,
       hitSl: this.state.sl != null && !this.state.cancelled,
+      boughtCoins: this.boughtCoins,
       averageEntryPrice: this.averageEntryPrice,
+      averageSalePrice: this.averageSalePrice,
       allocatedAmount: this.allocatedAmount,
       spentAmount: this.spentAmount,
+      soldAmount: this.saleValue,
       realizedProfit: this.realizedProfit,
       unrealizedProfit: this.unrealizedProfit,
     };

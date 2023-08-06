@@ -97,7 +97,7 @@ export class AccountSimulation {
         args: null as any,
         logger: null as any,
     };
-    private dailyStats: AccountDailyStats[] = [];
+    public readonly dailyStats: AccountDailyStats[] = [];
 
     constructor(args: BackTrackArgs, orders: Order[], cornixConfig: CornixConfiguration, logger?: Logger) {
         this.state.startTime = Math.min(...orders.map(x => x.date.setSeconds(0, 0)));
@@ -141,10 +141,12 @@ export class AccountSimulation {
             unrealizedProfitPerDay: 0,
             realizedPnlPerDay: 0,
             accountBalance: this.state.availableBalance,
-            balanceInOrders: this.state.balanceInOrders,
+            balanceInOrders: 0,
             unrealizedPnlPerDay: 0,
             day: new Date(currentDay),
         };
+
+        this.dailyStats.push({ ... currentDayStats });
 
         while (this.state.currentTime < this.state.endTime) {
             try {
@@ -184,6 +186,8 @@ export class AccountSimulation {
 
                 currentDayStats.unrealizedProfitPerDay = 0;
 
+                this.state.balanceInOrders = 0;
+
                 for (const order of activeOrdersCopy) {
                     const exchange = getExchange(order.order.exchange ?? '') ?? 'binance';
                     const tradeEntry = await this.loadTradeDataForSymbol(order.order.coin, this.state.currentTime, exchange);
@@ -218,12 +222,11 @@ export class AccountSimulation {
                         // todo: might be missing amount allocated to order
                         // todo: check behavior for SL
                         const currentlyRealizedProfit = order.state.realizedProfit - initialState.realizedProfit;
-                        const currentlyRealizedSale = (order.state.saleValue - initialState.saleValue) / order.state.leverage;
+                        const currentlyRealizedSale = (order.state.saleValue - initialState.saleValue);
                         this.state.openOrdersRealizedProfit += currentlyRealizedProfit;
                         this.state.availableBalance += currentlyRealizedSale;
 
                         currentDayStats.realizedProfitPerDay += currentlyRealizedProfit;
-                        this.state.balanceInOrders -= (currentlyRealizedSale - currentlyRealizedProfit);
 
                         const balanceAfter = this.state.availableBalance;
                         this.state.logger.log({
@@ -236,12 +239,15 @@ export class AccountSimulation {
                         });
                     }
 
+                    this.state.openOrdersUnrealizedProfit += order.state.profit;
+
                     currentPnl += order.state.pnl;
 
                     this.state.largestOrderDrawdown = Math.min(this.state.largestOrderDrawdown, order.state.pnl);
                     this.state.largestOrderGain = Math.max(this.state.largestOrderGain, order.state.pnl);
 
                     if (order.state.isClosed) {
+                        this.state.openOrdersUnrealizedProfit -= order.state.profit
                         this.state.closedOrdersProfit += order.state.profit;
 
                         this.state.finishedOrders.push(order);
@@ -254,6 +260,7 @@ export class AccountSimulation {
                         });
                     } else {
                         currentDayStats.unrealizedProfitPerDay += order.state.unrealizedProfit;
+                        this.state.balanceInOrders += order.state.remainingCoinsCurrentValue / order.state.leverage;
                     }
                 }
 

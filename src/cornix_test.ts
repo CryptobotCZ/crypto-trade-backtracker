@@ -236,8 +236,8 @@ Deno.test(function testMakeAutomaticLeverageAdjustmentBelowMinNotTrailing() {
 
 Deno.test(function testCalculateWeightedAverage() {
   const input = [
-    { id: 1, price: 50, percentage: 75/100  },
-    { id: 2, price: 100, percentage: 25/100 },
+    { id: 1, price: 50, percentage: 75  },
+    { id: 2, price: 100, percentage: 25 },
   ];
 
   const expected = 62.5;

@@ -204,9 +204,11 @@ export function makeAutomaticLeverageAdjustment(
 }
 
 export function calculateWeightedAverage(priceTargets: PriceTargetWithPrice[]) {
-  return priceTargets.reduce((weightedAverage, priceTarget) => {
+  const result = priceTargets.reduce((weightedAverage, priceTarget) => {
     return weightedAverage + (priceTarget.price * priceTarget.percentage);
   }, 0);
+
+  return result / 100;
 }
 
 export function getNewStopLoss(parentState: AbstractState, currentTp: number) {

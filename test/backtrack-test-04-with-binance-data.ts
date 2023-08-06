@@ -89,3 +89,5 @@ export async function testBacktrackingWithDownloadingData() {
 
     assertEquals(info, expectedInfo);
 }
+
+Deno.test('Test backtracking with downloading data', testBacktrackingWithDownloadingData);

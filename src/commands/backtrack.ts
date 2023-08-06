@@ -330,8 +330,17 @@ export async function backtrackInAccountModeCommand(args: BackTrackArgs) {
     writeAccountSimulationResultsSummary(result);
     writeResultsSummary(ordersWithResults);
     await writeResultsToFile(ordersWithResults, cornixConfig, args);
+
+    return { account, result, info: account.info, ordersWithResults };
 }
 
+export async function runBacktrackingInAccountMode(args: BackTrackArgs, orders: Order[], cornixConfig: CornixConfiguration) {
+  const account = new AccountSimulation(args, orders, cornixConfig);
+  const result = await account.runBacktrackingInAccountMode();
+  const ordersWithResults = account.getOrdersReport();
+
+  return { account, result, info: account.info, ordersWithResults };
+}
 
 export async function runBacktracking(
     args: BackTrackArgs,
@@ -598,9 +607,6 @@ class AccountSimulation {
     this.state.currentTime = this.state.startTime;
     this.state.endTime = new Date().getTime();
     this.state.config = cornixConfig;
-
-    this.state.config.amount = { type: 'percentage', percentage: 2 };
-
     this.state.args = args;
 
     const maxActiveOrders = args.maxActiveOrders ?? cornixConfig.maxActiveOrders ?? Infinity;
@@ -609,6 +615,8 @@ class AccountSimulation {
 
     this.state.remainingOrders = orders.toSorted((x, y) => x.date.getTime() - y.date.getTime());
     this.state.initialBalance = this.state.availableBalance;
+
+    // this.state.config.amount = { type: 'percentage', percentage: 2 };
   }
 
   async runBacktrackingInAccountMode() {
@@ -635,7 +643,8 @@ class AccountSimulation {
       try {
         this.updateActiveOrders();
 
-        if (this.state.currentTime % msInDay === 0) {
+        const remainder = this.state.currentTime % msInDay;
+        if (remainder === 0) {
           // probably new day, write new daily stats
           previousDay = currentDay;
           currentDay = this.state.currentTime;
@@ -650,6 +659,10 @@ class AccountSimulation {
           };
 
           console.log(`Day ${dailyStats.length} stats: Profit: ${stats.realizedProfitPerDay}, PnL: ${stats.realizedPnlPerDay}`);
+  
+          if (this.state.activeOrders.length === 0 && this.state.remainingOrders.length === 0) {
+            break;
+          }
         }
 
         // Then process all open orders
@@ -658,7 +671,7 @@ class AccountSimulation {
         let currentPnl = 0;
 
         currentDayStats.unrealizedProfitPerDay = 0;
-        
+
         for (const order of activeOrdersCopy) {
           const exchange = getExchange(order.order.exchange ?? '') ?? 'binance';
           const tradeEntry = await this.loadTradeDataForSymbol(order.order.coin, this.state.currentTime, exchange);
@@ -666,6 +679,7 @@ class AccountSimulation {
             console.log(`Missing trade data for ${order.order.coin}`);
             continue;
           }
+          console.log(`Coin: ${order.order.coin} - date: ${new Date(tradeEntry.openTime)} - open ${tradeEntry.open}`);
 
           const initialState = order.state;
           let previousState = order.state;
@@ -675,14 +689,16 @@ class AccountSimulation {
             order.state = order.state.updateState(tradeEntry);
           } while (order.state != previousState);
 
-          if (initialState.realizedProfit < order.state.realizedProfit) {
+          if (initialState.saleValue < order.state.saleValue) {
             // todo: might be missing amount allocated to order
             // todo: check behavior for SL
             const currentlyRealizedProfit = order.state.realizedProfit - initialState.realizedProfit;
+            const currentlyRealizedSale = (order.state.saleValue - initialState.saleValue) / order.state.leverage;
             this.state.openOrdersRealizedProfit += currentlyRealizedProfit;
-            this.state.availableBalance += currentlyRealizedProfit;
+            this.state.availableBalance += currentlyRealizedSale;
 
             currentDayStats.realizedProfitPerDay += currentlyRealizedProfit;
+            this.state.balanceInOrders -= (currentlyRealizedSale - currentlyRealizedProfit);
           }
 
           currentPnl += order.state.pnl;
@@ -740,7 +756,9 @@ class AccountSimulation {
   getOrdersReport() {
     const ordersWithResults = [];
 
-    for (const result of this.state.finishedOrders) {
+    const allOrders = [ ...this.state.finishedOrders, ...this.state.activeOrders ];
+ 
+    for (const result of allOrders) {
       if (this.state.args.debug) {
         const eventsWithoutCross = result.events
           .filter(x => x.type !== 'cross')
@@ -875,8 +893,31 @@ class AccountSimulation {
 
     return coinData.get(date);
   }
+  
+  get info() {
+    return {
+      initialBalance: this.state.initialBalance,
+      availableBalance: this.state.availableBalance,
+      balanceInOrders: this.state.balanceInOrders,
+      countActiveOrders: this.state.activeOrders.length,
+      countFinishedOrders: this.state.finishedOrders.length,
+      countSkippedOrders: this.state.skippedOrders.length,
+
+      openOrdersProfit: this.state.openOrdersProfit,
+      openOrdersUnrealizedProfit: this.state.openOrdersUnrealizedProfit,
+      openOrdersRealizedProfit: this.state.openOrdersRealizedProfit,
+      closedOrdersProfit: this.state.closedOrdersProfit,
+
+      largestAccountDrawdown: this.state.largestAccountDrawdown,
+      largestAccountGain: this.state.largestAccountGain,
+      largestOrderDrawdown: this.state.largetOrderDrawdown,
+      largestOrderGain: this.state.largestOrderGain,
+    };
+  }
 }
 
+export interface AccountState {
+}
 
 /**
  * Ideas:

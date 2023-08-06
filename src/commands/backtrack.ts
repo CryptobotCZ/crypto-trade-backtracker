@@ -3,8 +3,8 @@ import {exportCsv, exportCsvInCornixFormat} from "../output/csv.ts";
 
 import {
   AbstractState,
-  backtrack,
-  getBackTrackEngine,
+  backtrack, createLogger,
+  getBackTrackEngine, Logger,
   Order,
   TradeResult,
 } from "../backtrack-engine.ts";
@@ -335,11 +335,11 @@ export async function backtrackInAccountModeCommand(args: BackTrackArgs) {
 }
 
 export async function runBacktrackingInAccountMode(args: BackTrackArgs, orders: Order[], cornixConfig: CornixConfiguration) {
-  const account = new AccountSimulation(args, orders, cornixConfig);
+  const account = new AccountSimulation(args, orders, cornixConfig, createLogger());
   const result = await account.runBacktrackingInAccountMode();
   const ordersWithResults = account.getOrdersReport();
 
-  return { account, result, info: account.info, ordersWithResults };
+  return { account, result, info: account.info, ordersWithResults, events: account.state.logger?.events ?? [] };
 }
 
 export async function runBacktracking(
@@ -566,7 +566,9 @@ export interface AccountState {
   config: CornixConfiguration;
 
   maxActiveOrders: number;
-  args: BackTrackArgs,
+  args: BackTrackArgs;
+
+  logger: Logger;
 }
 
 class AccountSimulation {
@@ -602,7 +604,7 @@ class AccountSimulation {
     args: null as any,
   };
 
-  constructor(args: BackTrackArgs, orders: Order[], cornixConfig: CornixConfiguration) {
+  constructor(args: BackTrackArgs, orders: Order[], cornixConfig: CornixConfiguration, logger?: Logger) {
     this.state.startTime = Math.min(...orders.map(x => x.date.setSeconds(0, 0)));
     this.state.currentTime = this.state.startTime;
     this.state.endTime = new Date().getTime();
@@ -616,17 +618,25 @@ class AccountSimulation {
     this.state.remainingOrders = orders.toSorted((x, y) => x.date.getTime() - y.date.getTime());
     this.state.initialBalance = this.state.availableBalance;
 
-    // this.state.config.amount = { type: 'percentage', percentage: 2 };
+    this.state.config.amount = { type: 'percentage', percentage: 2 };
+
+    this.state.logger = logger ?? { log: () => {}, verbose: () => {} };
+    
+    this.state.logger.log({
+      type: "info",
+      initialAccountBalance: this.state.availableBalance
+    });
   }
 
   async runBacktrackingInAccountMode() {
     const dailyStats = [];
 
-    let currentDay = new Date(new Date(this.state.currentTime).setUTCHours(0, 0, 0, 0)).getTime();
-    let previousDay = new Date(new Date(this.state.currentTime).setUTCHours(0, 0, 0, 0) - 60 * 60 * 24 * 1000).getTime();
-
     const minuteInMs = 60 * 1000;
     const msInDay = minuteInMs * 60 * 24;
+    
+    const currentDayUtcTimestamp = new Date(this.state.currentTime).setUTCHours(0, 0, 0, 0);
+    let currentDay = new Date(currentDayUtcTimestamp).getTime();
+    let previousDay = new Date(currentDayUtcTimestamp - msInDay).getTime();
 
     performance.mark("backtrack_start");
 
@@ -679,7 +689,7 @@ class AccountSimulation {
             console.log(`Missing trade data for ${order.order.coin}`);
             continue;
           }
-          console.log(`Coin: ${order.order.coin} - date: ${new Date(tradeEntry.openTime)} - open ${tradeEntry.open}`);
+//          console.log(`Coin: ${order.order.coin} - date: ${new Date(tradeEntry.openTime)} - open ${tradeEntry.open}`);
 
           const initialState = order.state;
           let previousState = order.state;
@@ -690,6 +700,11 @@ class AccountSimulation {
           } while (order.state != previousState);
 
           if (initialState.saleValue < order.state.saleValue) {
+            if (!initialState.info.reachedAllEntries && order.state.info.reachedTps > 0) {
+              // didn't reach all entries, but hit TP -> free the amount allocated to unrealized entry points
+              this.state.availableBalance +=  order.state.remainingAmount;
+            }
+
             // todo: might be missing amount allocated to order
             // todo: check behavior for SL
             const currentlyRealizedProfit = order.state.realizedProfit - initialState.realizedProfit;
@@ -918,19 +933,6 @@ class AccountSimulation {
 
 export interface AccountState {
 }
-
-/**
- * Ideas:
- *
- * Rework the loading of data in the loop.
- *
- * Optimize cache for loading data - load based on startDate - check if it contains data for coin, if yes, good.
- * If not, load, but load since the startDate, remove the previous data.
- *
- * Move processing single order into separate function.
- *
- * Maybe introduce class for Account backtracking.
- */
 
 function getExchange(exchange: string) {
   if (exchange.match(/bybit/i)) {

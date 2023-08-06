@@ -93,16 +93,7 @@ export function getBackTrackEngine(
   order: Order,
   backtrackConfig?: BackTrackingConfig,
 ) {
-  const logger = {
-    events: [] as LogEvent[],
-    log: function (event: LogEvent) {
-      this.events.push(event);
-    },
-    verbose: function (event: LogEvent) {
-      this.log(event);
-    },
-  };
-
+  const logger = createLogger();
   const state: AbstractState = new InitialState(
     order,
     config,
@@ -993,3 +984,14 @@ class CancelledState extends AbstractState {
   }
 }
 
+export function createLogger(): Logger {
+  return {
+    events: [] as LogEvent[],
+    log: function (event: LogEvent) {
+      this.events.push(event);
+    },
+    verbose: function (event: LogEvent) {
+      this.log(event);
+    },
+  };
+}

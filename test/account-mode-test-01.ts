@@ -82,7 +82,8 @@ export async function testOrdersInAccountMode() {
         },
     ];
 
-    const { account, result, info, ordersWithResults } = await runBacktrackingInAccountMode(args, orders, config);
+    const { account, result, info, ordersWithResults, events }
+        = await runBacktrackingInAccountMode(args, orders, config);
 
     const bnbTrade = ordersWithResults[0];
     const btcTrade = ordersWithResults[1];

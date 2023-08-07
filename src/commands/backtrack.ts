@@ -23,7 +23,7 @@ import {
     getTradeDuration,
     mapGetOrCreate,
 } from "../utils.ts";
-import {AccountSimulation} from "../backtrack-account.ts";
+import {AccountSimulation, AccountState} from "../backtrack-account.ts";
 
 
 export interface DetailedBackTrackResult {
@@ -334,11 +334,12 @@ export async function backtrackInAccountModeCommand(args: BackTrackArgs) {
 }
 
 export async function runBacktrackingInAccountMode(args: BackTrackArgs, orders: Order[], cornixConfig: CornixConfiguration) {
-  const account = new AccountSimulation(args, orders, cornixConfig, createLogger());
+  const logger = createLogger();
+  const account = new AccountSimulation(args, orders, cornixConfig, logger);
   const result = await account.runBacktrackingInAccountMode();
   const ordersWithResults = account.getOrdersReport();
 
-  return { account, result, info: account.info, ordersWithResults, events: account.state.logger?.events ?? [] };
+  return { account, result, info: account.info, ordersWithResults, events: logger.events ?? [] };
 }
 
 export async function runBacktracking(

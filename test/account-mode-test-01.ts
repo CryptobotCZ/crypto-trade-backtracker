@@ -2,8 +2,9 @@
 import {assertEquals} from "https://deno.land/std@0.192.0/testing/asserts.ts";
 import {BackTrackArgs, runBacktrackingInAccountMode} from "../src/commands/backtrack.ts";
 import { Order } from "../src/backtrack-engine.ts";
-import { CornixConfiguration } from "../src/cornix.ts";
+import {CornixConfiguration, getOrderAmount} from "../src/cornix.ts";
 import {getInput} from "../src/import.ts";
+import {OrderWithResult} from "../src/backtrack-account.ts";
 
 const config: CornixConfiguration = {
     amount: 100,
@@ -28,8 +29,8 @@ const config: CornixConfiguration = {
 };
 const args: BackTrackArgs = {
     accountMode: true,
-    accountInitialBalance: 2500
-} as any;
+    accountInitialBalance: 2500,
+} as BackTrackArgs as any;
 
 export async function testOrdersInAccountMode() {
     const orders: Order[] = [
@@ -173,7 +174,7 @@ export async function testRealWorldOrdersInAccountMode() {
             { percentage: 30 },
             { percentage: 55 },
         ]
-    };
+    } as Partial<CornixConfiguration> as any;
 
     const { account, result, info, ordersWithResults, events }
         = await runBacktrackingInAccountMode(args, orders, config);
@@ -198,4 +199,3 @@ export async function testRealWorldOrdersInAccountMode() {
 }
 
 Deno.test('Test real world orders in account mode', testRealWorldOrdersInAccountMode);
-

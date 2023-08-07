@@ -1,4 +1,4 @@
-﻿import {AbstractState, getBackTrackEngine, Logger, Order} from "./backtrack-engine.ts";
+﻿import {AbstractState, getBackTrackEngine, LogEvent, Logger, Order, TradeResult} from "./backtrack-engine.ts";
 import {
     calculateWeightedAverage,
     CornixConfiguration,
@@ -64,11 +64,20 @@ export interface AccountDailyStats {
     day: Date;
 }
 
+export interface OrderWithResult {
+    order: Order;
+    state: AbstractState;
+    info: TradeResult;
+    sortedUniqueCrosses: LogEvent[];
+    events: LogEvent[];
+    tradeData: TradeData[];
+}
+
 export class AccountSimulation {
     // exchange, coin, date, trade-data
     private tradeData = new Map<string, Map<string, Map<number, TradeData>>>();
 
-    private state: AccountState = {
+    readonly state: AccountState = {
         startTime: 0,
         previousTime: -Infinity,
         endTime: 0,
@@ -301,7 +310,7 @@ export class AccountSimulation {
         return this.state;
     }
 
-    getOrdersReport() {
+    getOrdersReport(): OrderWithResult[] {
         const ordersWithResults = [];
 
         const allOrders = [ ...this.state.finishedOrders, ...this.state.activeOrders ];
@@ -326,6 +335,7 @@ export class AccountSimulation {
 
             if (result != null) {
                 ordersWithResults.push({
+                    state: result.state,
                     order: result.state.order,
                     info: result.state.info,
                     sortedUniqueCrosses: sortedUniqueCrosses.map((x) => {

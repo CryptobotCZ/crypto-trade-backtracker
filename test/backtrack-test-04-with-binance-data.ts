@@ -67,7 +67,7 @@ export async function testBacktrackingWithDownloadingData() {
         "timestamp": 1690833540000
     }]);
 
-    const expectedInfo = {
+    const expectedInfo: TradeResult = {
         "reachedEntries": 1,
         "reachedTps": 0,
         "openTime": new Date("2023-07-31T00:45:05.000Z"),
@@ -85,6 +85,9 @@ export async function testBacktrackingWithDownloadingData() {
         "unrealizedProfit": 0,
         "reachedAllEntries": true,
         "reachedAllTps": false,
+        boughtCoins: 0,
+        averageSalePrice: 0,
+        soldAmount: 0,
     }
 
     assertEquals(info, expectedInfo);

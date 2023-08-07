@@ -631,8 +631,12 @@ class InitialState extends AbstractState {
 
     const openTime = typeof order.date === 'number' ? new Date(order.date) : order.date;
 
+    const cornixConfigAmount = typeof config.amount === 'number' 
+        ? config.amount
+        : 100;
+
     const state: InternalState = {
-      allocatedAmount: order.amount ?? config.amount,
+      allocatedAmount: order.amount ?? cornixConfigAmount,
       tradeOpenTime: openTime,
       remainingEntries,
       remainingTps,
@@ -1002,7 +1006,7 @@ class CancelledState extends AbstractState {
   }
 }
 
-export function createLogger(): Logger {
+export function createLogger(): Logger & { events: LogEvent[] } {
   return {
     events: [] as LogEvent[],
     log: function (event: LogEvent) {

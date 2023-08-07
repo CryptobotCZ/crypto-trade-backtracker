@@ -113,7 +113,7 @@ export class AccountSimulation {
         this.state.remainingOrders = orders.toSorted((x, y) => x.date.getTime() - y.date.getTime());
         this.state.initialBalance = this.state.availableBalance;
 
-        this.state.config.amount = { type: 'percentage', percentage: 2 };
+//        this.state.config.amount = { type: 'percentage', percentage: 2 };
 
         this.state.logger = logger ?? { log: () => {}, verbose: () => {} };
 

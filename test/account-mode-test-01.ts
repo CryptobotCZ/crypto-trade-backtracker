@@ -1,8 +1,9 @@
 ﻿import { assertArrayIncludes } from "https://deno.land/std/testing/asserts.ts";
+import {assertEquals} from "https://deno.land/std@0.192.0/testing/asserts.ts";
 import {BackTrackArgs, runBacktrackingInAccountMode} from "../src/commands/backtrack.ts";
 import { Order } from "../src/backtrack-engine.ts";
 import { CornixConfiguration } from "../src/cornix.ts";
-import {assertEquals} from "https://deno.land/std@0.192.0/testing/asserts.ts";
+import {getInput} from "../src/import.ts";
 
 const config: CornixConfiguration = {
     amount: 100,
@@ -161,3 +162,40 @@ export async function testOrdersInAccountMode() {
 }
 
 Deno.test('Test orders in account mode', testOrdersInAccountMode);
+
+export async function testRealWorldOrdersInAccountMode() {
+    const { orders } = await getInput({ orderFiles: [ "../data/account-test-orders.json" ] });
+    const config: CornixConfiguration = {
+        amount: 25,
+        entries: 'Evenly Divided',
+        tps: [
+            { percentage: 15 },
+            { percentage: 30 },
+            { percentage: 55 },
+        ]
+    };
+
+    const { account, result, info, ordersWithResults, events }
+        = await runBacktrackingInAccountMode(args, orders, config);
+
+    const expectedInfo = {
+        "initialBalance": 2500,
+        "availableBalance": 2399.9866278585123,
+        "balanceInOrders": 104.74103198199485,
+        "countActiveOrders": 0,
+        "countFinishedOrders": 2,
+        "countSkippedOrders": 0,
+        "openOrdersProfit": 0,
+        "openOrdersUnrealizedProfit": 0,
+        "openOrdersRealizedProfit": 4.727659840507187,
+        "closedOrdersProfit": 4.727659840507187,
+        "largestAccountDrawdown": -7.299657534246762,
+        "largestAccountGain": 25.84246575342513,
+        "largestOrderGain": 25.84246575342513
+    };
+
+    assertEquals(info, expectedInfo);
+}
+
+Deno.test('Test real world orders in account mode', testRealWorldOrdersInAccountMode);
+

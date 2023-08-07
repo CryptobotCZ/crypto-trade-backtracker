@@ -41,10 +41,10 @@ export interface AccountState {
     openOrdersRealizedProfit: number;
     closedOrdersProfit: number;
 
-    largestAccountDrawdown: number;
-    largestAccountGain: number;
-    largestOrderDrawdown: number;
-    largestOrderGain: number;
+    largestAccountDrawdownPct: number;
+    largestAccountGainPct: number;
+    largestOrderDrawdownPct: number;
+    largestOrderGainPct: number;
 
     config: CornixConfiguration;
 
@@ -96,10 +96,10 @@ export class AccountSimulation {
         openOrdersRealizedProfit: 0,
         closedOrdersProfit: 0,
 
-        largestAccountDrawdown: Infinity,
-        largestAccountGain: -Infinity,
-        largestOrderDrawdown: Infinity,
-        largestOrderGain: -Infinity,
+        largestAccountDrawdownPct: Infinity,
+        largestAccountGainPct: -Infinity,
+        largestOrderDrawdownPct: Infinity,
+        largestOrderGainPct: -Infinity,
 
         config: null as any,
         maxActiveOrders: Infinity,
@@ -196,9 +196,10 @@ export class AccountSimulation {
                 currentDayStats.unrealizedProfitPerDay = 0;
 
                 this.state.balanceInOrders = 0;
+                this.state.openOrdersUnrealizedProfit = 0;
 
                 for (const order of activeOrdersCopy) {
-                    const exchange = getExchange(order.order.exchange ?? '') ?? 'binance';
+                    const exchange = getExchange(order.order.exchange ?? this.state.args.exchange) ?? 'binance';
                     const tradeEntry = await this.loadTradeDataForSymbol(order.order.coin, this.state.currentTime, exchange);
                     if (tradeEntry == null) {
                         console.log(`Missing trade data for ${order.order.coin}`);
@@ -248,12 +249,10 @@ export class AccountSimulation {
                         });
                     }
 
-                    this.state.openOrdersUnrealizedProfit += order.state.profit;
-
                     currentPnl += order.state.pnl;
 
-                    this.state.largestOrderDrawdown = Math.min(this.state.largestOrderDrawdown, order.state.pnl);
-                    this.state.largestOrderGain = Math.max(this.state.largestOrderGain, order.state.pnl);
+                    this.state.largestOrderDrawdownPct = Math.min(this.state.largestOrderDrawdownPct, order.state.pnl);
+                    this.state.largestOrderGainPct = Math.max(this.state.largestOrderGainPct, order.state.pnl);
 
                     if (order.state.isClosed) {
                         this.state.openOrdersUnrealizedProfit -= order.state.profit
@@ -268,13 +267,14 @@ export class AccountSimulation {
                             time: this.state.currentTime,
                         });
                     } else {
+                        this.state.openOrdersUnrealizedProfit += order.state.unrealizedProfit;
                         currentDayStats.unrealizedProfitPerDay += order.state.unrealizedProfit;
                         this.state.balanceInOrders += order.state.remainingCoinsCurrentValue / order.state.leverage;
                     }
                 }
 
-                this.state.largestAccountDrawdown = Math.min(this.state.largestAccountDrawdown, currentPnl);
-                this.state.largestAccountGain = Math.max(this.state.largestAccountGain, currentPnl);
+                this.state.largestAccountDrawdownPct = Math.min(this.state.largestAccountDrawdownPct, currentPnl);
+                this.state.largestAccountGainPct = Math.max(this.state.largestAccountGainPct, currentPnl);
 
                 currentDayStats.realizedPnlPerDay = currentPnl;
 
@@ -474,10 +474,10 @@ export class AccountSimulation {
             openOrdersRealizedProfit: this.state.openOrdersRealizedProfit,
             closedOrdersProfit: this.state.closedOrdersProfit,
 
-            largestAccountDrawdown: this.state.largestAccountDrawdown,
-            largestAccountGain: this.state.largestAccountGain,
-            largestOrderDrawdown: this.state.largestOrderDrawdown,
-            largestOrderGain: this.state.largestOrderGain,
+            largestAccountDrawdownPct: this.state.largestAccountDrawdownPct,
+            largestAccountGainPct: this.state.largestAccountGainPct,
+            largestOrderDrawdownPct: this.state.largestOrderDrawdownPct,
+            largestOrderGainPct: this.state.largestOrderGainPct,
         };
     }
 }

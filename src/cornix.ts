@@ -305,7 +305,7 @@ export function getWeightedAverageEntryPrice(order: Order, config: CornixConfigu
 
 
 export function getOrderAmount(order: Order, cornixConfig: CornixConfiguration, availableBalance: number) {
-  const orderAmountConfig = order.config?.amount ?? cornixConfig.amount;
+  const orderAmountConfig = order.config?.amount ?? cornixConfig?.amount ?? 100;
   let orderAmount = 0;
 
   if (typeof orderAmountConfig === 'number') {

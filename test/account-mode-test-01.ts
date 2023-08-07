@@ -6,7 +6,7 @@ import {CornixConfiguration, getOrderAmount} from "../src/cornix.ts";
 import {getInput} from "../src/import.ts";
 import {OrderWithResult} from "../src/backtrack-account.ts";
 
-const config: CornixConfiguration = {
+const globalConfig: CornixConfiguration = {
     amount: 100,
     entries: [
         { percentage: 50 },
@@ -24,12 +24,14 @@ const config: CornixConfiguration = {
         { percentage: 10 },
         { percentage: 5 },
     ],
-    trailingTakeProfit: "without",
+    trailingTakeProfit: 0.2,
     trailingStop: { type: "moving-target", trigger: 1 },
 };
 const args: BackTrackArgs = {
     accountMode: true,
     accountInitialBalance: 2500,
+    downloadExchangeData: true,
+    exchange: 'bybit',
 } as BackTrackArgs as any;
 
 export async function testOrdersInAccountMode() {
@@ -85,7 +87,7 @@ export async function testOrdersInAccountMode() {
     ];
 
     const { account, result, info, ordersWithResults, events }
-        = await runBacktrackingInAccountMode(args, orders, config);
+        = await runBacktrackingInAccountMode(args, orders, globalConfig);
 
     const bnbTrade = ordersWithResults[0];
     const btcTrade = ordersWithResults[1];
@@ -164,6 +166,17 @@ export async function testOrdersInAccountMode() {
 
 Deno.test('Test orders in account mode', testOrdersInAccountMode);
 
+function getOrdersSummary(order: OrderWithResult[]) {
+    return order.reduce((summary, x) => {
+        summary.pnl += x.info.pnl,
+        summary.profit += x.info.profit;
+        return summary;
+    }, {
+        pnl: 0,
+        profit: 0,
+    });
+}
+
 export async function testRealWorldOrdersInAccountMode() {
     const { orders } = await getInput({ orderFiles: [ "../data/account-test-orders.json" ] });
     const config: CornixConfiguration = {
@@ -173,28 +186,46 @@ export async function testRealWorldOrdersInAccountMode() {
             { percentage: 15 },
             { percentage: 30 },
             { percentage: 55 },
-        ]
+        ],
+        trailingTakeProfit: 0.2,
+        trailingStop: {
+            type: 'moving-target',
+            trigger: 1,
+        }
     } as Partial<CornixConfiguration> as any;
 
     const { account, result, info, ordersWithResults, events }
         = await runBacktrackingInAccountMode(args, orders, config);
 
+    const ordersSummary = getOrdersSummary(ordersWithResults);
+    const dailyStatsSummary = account.dailyStats.reduce((sum, x) => {
+        sum.profit += x.realizedProfitPerDay;
+        sum.pnl += x.realizedPnlPerDay;
+
+        return sum;
+    }, {
+        profit: 0,
+        pnl: 0,
+    });
+
     const expectedInfo = {
         "initialBalance": 2500,
-        "availableBalance": 2399.9866278585123,
-        "balanceInOrders": 104.74103198199485,
+        "availableBalance": 2493.6063236883056,
+        "balanceInOrders": 0,
         "countActiveOrders": 0,
-        "countFinishedOrders": 2,
+        "countFinishedOrders": 37,
         "countSkippedOrders": 0,
         "openOrdersProfit": 0,
         "openOrdersUnrealizedProfit": 0,
-        "openOrdersRealizedProfit": 4.727659840507187,
-        "closedOrdersProfit": 4.727659840507187,
-        "largestAccountDrawdown": -7.299657534246762,
-        "largestAccountGain": 25.84246575342513,
-        "largestOrderGain": 25.84246575342513
+        "openOrdersRealizedProfit": 85.26662087624561,
+        "closedOrdersProfit": 85.26662087624561,
+        "largestAccountDrawdownPct": -69.95802518488904,
+        "largestAccountGainPct": 118.74352331606201,
+        "largestOrderDrawdownPct": -69.95802518488904,
+        "largestOrderGainPct": 118.74352331606201
     };
 
+    assertEquals(info.closedOrdersProfit, ordersSummary.profit);
     assertEquals(info, expectedInfo);
 }
 

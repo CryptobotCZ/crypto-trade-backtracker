@@ -86,7 +86,15 @@ export function getByBitInterval(interval: string) {
 }
 
 export function getCoinName(coin: string) {
-    return coin;
+  coin = coin
+    .replace("SUSHIUSDT.P", "SUSHIUSDT")
+    .replace("SUSHIUSDTPERP", "SUSHIUSDT")
+    .replace(".P", "")
+    .replace("PERP", "");
+
+  coin = coin.replace("/", "");
+
+  return coin;
 }
 
 let isFirstRun = true;

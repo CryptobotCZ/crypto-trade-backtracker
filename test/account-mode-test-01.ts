@@ -1,7 +1,7 @@
 ﻿import { assertArrayIncludes } from "https://deno.land/std/testing/asserts.ts";
 import {assertEquals} from "https://deno.land/std@0.192.0/testing/asserts.ts";
 import {BackTrackArgs, runBacktrackingInAccountMode} from "../src/commands/backtrack.ts";
-import { Order } from "../src/backtrack-engine.ts";
+import {Order, TradeResult} from "../src/backtrack-engine.ts";
 import {CornixConfiguration, getOrderAmount} from "../src/cornix.ts";
 import {getInput} from "../src/import.ts";
 import {AccountInfo, OrderWithResult} from "../src/backtrack-account.ts";
@@ -211,7 +211,7 @@ export async function testRealWorldOrdersInAccountMode() {
 
     const expectedInfo = {
         "initialBalance": 2500,
-        "availableBalance": 2493.6063236883056,
+        "availableBalance": 2585.3790422499105,
         "balanceInOrders": 0,
         "countActiveOrders": 0,
         "countFinishedOrders": 37,
@@ -219,13 +219,14 @@ export async function testRealWorldOrdersInAccountMode() {
         "openOrdersProfit": 0,
         "openOrdersUnrealizedProfit": 0,
         "openOrdersRealizedProfit": 85.26662087624561,
-        "closedOrdersProfit": 85.26662087624561,
+        "closedOrdersProfit": 85.3790422499105,
         "largestAccountDrawdownPct": -69.95802518488904,
         "largestAccountGainPct": 118.74352331606201,
         "largestOrderDrawdownPct": -69.95802518488904,
         "largestOrderGainPct": 118.74352331606201
     };
 
+    assertEquals(info.closedOrdersProfit, dailyStatsSummary.profit);
     assertEquals(info.closedOrdersProfit, ordersSummary.profit);
     assertEquals(info, expectedInfo);
 }

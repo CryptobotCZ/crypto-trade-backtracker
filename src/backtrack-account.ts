@@ -1,9 +1,7 @@
 ﻿import {AbstractState, getBackTrackEngine, LogEvent, Logger, Order, TradeResult} from "./backtrack-engine.ts";
 import {
-    calculateWeightedAverage,
     CornixConfiguration,
     getFlattenedCornixConfig, getOrderAmount,
-    getWeightedAverageEntryPrice,
     validateOrder
 } from "./cornix.ts";
 import {getTradeDataWithCache, loadDataFromCache, TradeData} from "./exchanges/exchanges.ts";
@@ -139,8 +137,6 @@ export class AccountSimulation {
         this.state.remainingOrders = orders.toSorted((x, y) => x.date.getTime() - y.date.getTime());
         this.state.initialBalance = this.state.availableBalance;
 
-//        this.state.config.amount = { type: 'percentage', percentage: 2 };
-
         this.state.logger = logger ?? { log: () => {}, verbose: () => {} };
 
         this.state.logger.log({
@@ -249,9 +245,17 @@ export class AccountSimulation {
                         // todo: might be missing amount allocated to order
                         // todo: check behavior for SL
                         const currentlyRealizedProfit = order.state.realizedProfit - initialState.realizedProfit;
-                        const currentlyRealizedSale = (order.state.saleValue - initialState.saleValue);
+                        const currentlyRealizedSale = (order.state.saleValue - initialState.saleValue); // this doesn't help much...
+
+                        // TODO: Leverage and sale makes mess here
+                        const diffBetweenSaleAndBuy = order.state.saleValueWithLev - order.state.spentAmountWithLev;
+                        const diffBetweenSaleAndBuyWithoutLev = order.state.saleValue - order.state.spentAmount;
+
+                        const currentlySoldFromAllocated = (order.state.soldPct - initialState.soldPct);
+                        const soldFromAllocated = currentlySoldFromAllocated * order.state.spentAmount;
+
                         this.state.openOrdersRealizedProfit += currentlyRealizedProfit;
-                        this.state.availableBalance += currentlyRealizedSale;
+                        this.state.availableBalance += soldFromAllocated + currentlyRealizedProfit;
 
                         currentDayStats.realizedProfitPerDay += currentlyRealizedProfit;
 
@@ -302,8 +306,7 @@ export class AccountSimulation {
                 // TODO: Add daily PnL
             } catch (exc) {
 
-            }
-            finally {
+            } finally {
                 this.state.currentTime += msInMinute;
             }
 
@@ -497,9 +500,6 @@ export class AccountSimulation {
             largestOrderGainPct: this.state.largestOrderGainPct,
         };
     }
-}
-
-export interface AccountState {
 }
 
 function getExchange(exchange: string) {

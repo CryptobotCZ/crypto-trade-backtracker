@@ -237,8 +237,8 @@ export abstract class AbstractState {
   }
 
   get saleValueWithLev() {
-    return this.state.takeProfits.reduce((sum, tp) => tp.total + sum, 0) +
-      (this.state.sl?.total ?? 0);
+    const tpSum = this.state.takeProfits.reduce((sum, tp) => tp.total + sum, 0);
+    return tpSum + (this.state.sl?.total ?? 0);
   }
 
   get saleValue() {
@@ -262,13 +262,21 @@ export abstract class AbstractState {
     return gainPct * 100;
   }
 
+  get soldPct() {
+    return this.soldCoins / this.boughtCoins;
+  }
+
+  get remainingPct() {
+    return this.remainingCoins / this.boughtCoins;
+  }
+
   get realizedProfit() {
     if (this.boughtCoins === 0) {
       return 0;
     }
 
-    const percentageSold = this.soldCoins / this.boughtCoins;
-    return this.calculateProfit(this.saleValueWithLev, percentageSold);
+    const calculatedProfit = this.calculateProfit(this.saleValueWithLev, this.soldPct);
+    return calculatedProfit;
   }
 
   get unrealizedProfit() {
@@ -276,7 +284,7 @@ export abstract class AbstractState {
       return 0;
     }
 
-    return this.calculateProfit(this.remainingCoinsCurrentValue, this.remainingCoins / this.boughtCoins);
+    return this.calculateProfit(this.remainingCoinsCurrentValue, this.remainingPct);
   }
 
   calculateProfit(saleValue: number, soldPercentage = 1) {

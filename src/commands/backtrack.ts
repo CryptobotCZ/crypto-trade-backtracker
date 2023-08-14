@@ -1,4 +1,4 @@
-import { writeJson } from "https://deno.land/x/jsonfile@1.0.0/write_json.ts";
+import { writeJson } from "../../deps.ts";
 import {exportCsv, exportCsvInCornixFormat} from "../output/csv.ts";
 
 import {

@@ -1,0 +1,10 @@
+﻿export { writeJson } from "https://deno.land/x/jsonfile@1.0.0/write_json.ts";
+export * as fs from "https://deno.land/std@0.198.0/fs/mod.ts";
+export { dirname } from "https://deno.land/std@0.198.0/path/mod.ts";
+export * as path from "https://deno.land/std@0.198.0/path/mod.ts";
+export { sleep } from "https://deno.land/x/sleep@v1.2.1/mod.ts";
+export type { Arguments } from "https://deno.land/x/yargs@v17.7.2-deno/deno-types.ts";
+export { YargsInstance } from "https://deno.land/x/yargs@v17.7.2-deno/build/lib/yargs-factory.js";
+import yargs from "https://deno.land/x/yargs@v17.7.2-deno/deno.ts";
+import { Arguments } from "https://deno.land/x/yargs@v17.7.2-deno/deno-types.ts";
+export default yargs;

@@ -1,5 +1,5 @@
-import yargs from "https://deno.land/x/yargs/deno.ts";
-import { Arguments } from "https://deno.land/x/yargs/deno-types.ts";
+import yargs from "./deps.ts";
+import { YargsInstance, Arguments } from "./deps.ts";
 import {
     backtrackCommand, backtrackInAccountModeCommand,
     defaultCornixConfig,
@@ -7,7 +7,6 @@ import {
 import { global } from "./src/globals.ts";
 import { updateCacheStructure } from "./src/commands/update-cache.ts";
 import {installedExchanges} from "./src/exchanges/exchanges.ts";
-import { YargsInstance } from "https://deno.land/x/yargs@v17.7.2-deno/build/lib/yargs-factory.js";
 
 const addInputFilesArg = (yargs: YargsInstance) => {
   yargs.positional("orderFiles", {

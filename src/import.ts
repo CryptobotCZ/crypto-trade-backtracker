@@ -1,4 +1,4 @@
-﻿import * as fs from "https://deno.land/std@0.192.0/fs/mod.ts";
+﻿import { fs } from "../deps.ts";
 import {Order} from "./backtrack-engine.ts";
 import {PreBacktrackedData} from "./commands/backtrack.ts";
 import {BinanceItemArray, transformArrayToObject} from "./exchanges/binance-api.ts";

@@ -1,5 +1,5 @@
-﻿import {assertEquals} from "https://deno.land/std@0.192.0/testing/asserts.ts";
-import * as fs from "https://deno.land/std@0.192.0/fs/mod.ts";
+﻿import { assertEquals, assertArrayIncludes } from "../dev_deps.ts";
+import { fs } from '../deps.ts';
 
 Deno.test(async function runBacktrackCommand() {
   const command = new Deno.Command('deno', {

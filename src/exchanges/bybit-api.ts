@@ -1,4 +1,4 @@
-﻿import { sleep } from "https://deno.land/x/sleep/mod.ts";
+﻿import { sleep } from "../../deps.ts";
 import { ApiError, Exchange, TradeData } from "./exchanges.ts";
 
 export type ByBitItemArray = [

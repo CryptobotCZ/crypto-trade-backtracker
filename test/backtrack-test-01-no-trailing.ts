@@ -1,9 +1,8 @@
-import { assertEquals } from "https://deno.land/std@0.188.0/testing/asserts.ts";
+import { assertArrayIncludes, assertEquals } from "../dev_deps.ts";
 import { TradeData } from "../src/exchanges/exchanges.ts";
 import { backtrack, Order, TradeResult } from "../src/backtrack-engine.ts";
 import { getTrade } from "./_helpers.ts";
 import { CornixConfiguration } from "../src/cornix.ts";
-import { assertArrayIncludes } from "https://deno.land/std/testing/asserts.ts";
 
 const config: CornixConfiguration = {
   amount: 100,

@@ -1,4 +1,4 @@
-﻿import * as fs from "https://deno.land/std@0.192.0/fs/mod.ts";
+﻿import { fs } from "../../deps.ts";
 import { installedExchanges } from "../exchanges/exchanges.ts";
 
 export async function updateCacheStructure(cachePath?: string) {

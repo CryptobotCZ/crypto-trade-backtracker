@@ -1,7 +1,4 @@
-﻿import * as fs from "https://deno.land/std@0.192.0/fs/mod.ts";
-import { writeJson } from "https://deno.land/x/jsonfile/mod.ts";
-import { dirname } from "https://deno.land/std@0.192.0/path/mod.ts";
-import * as path from "https://deno.land/std/path/mod.ts";
+﻿import { fs, writeJson, dirname, path } from "../../deps.ts";
 
 import { global } from "../globals.ts";
 import { BinanceApi } from "./binance-api.ts";

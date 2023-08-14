@@ -1,5 +1,4 @@
-﻿import { assertArrayIncludes } from "https://deno.land/std/testing/asserts.ts";
-import {assertEquals} from "https://deno.land/std@0.192.0/testing/asserts.ts";
+﻿import { assertArrayIncludes, assertEquals } from "../dev_deps.ts";
 import {BackTrackArgs, runBacktrackingInAccountMode} from "../src/commands/backtrack.ts";
 import {Order, TradeResult} from "../src/backtrack-engine.ts";
 import {CornixConfiguration, getOrderAmount} from "../src/cornix.ts";

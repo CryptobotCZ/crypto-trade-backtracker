@@ -5,7 +5,7 @@
   mapPriceTargets,
   PriceTargetWithPrice, TrailingStop
 } from "./cornix.ts";
-import { assertEquals } from "https://deno.land/std@0.188.0/testing/asserts.ts";
+import { assertEquals } from "../dev_deps.ts";
 import {AbstractState} from "./backtrack-engine.ts";
 
 Deno.test(function evenlyDistributedPriceTargets() {

@@ -66,7 +66,7 @@ export interface BackTrackArgs {
 
 export const defaultCornixConfig: CornixConfiguration = {
   amount: 100,
-  entries: "One Target",
+  entries: "Evenly Divided",
   tps: "Evenly Divided",
   trailingStop: { type: "moving-target", trigger: 1 },
   trailingTakeProfit: 0.02,

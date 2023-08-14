@@ -16,12 +16,20 @@ permissions:
   contents: read
 
 jobs:
-  example_matrix:
+  os_matrix:
     strategy:
       matrix:
         os: [ ubuntu-latest, windows-latest, macos-latest ]
     runs-on: ${{ matrix.os }}
+    env:
+      DENO_DIR: my_cache_directory
     steps:
+      - name: Cache Deno dependencies
+        uses: actions/cache@v2
+        with:
+          path: ${{ env.DENO_DIR }}
+          key: ${{ secrets.CACHE_VERSION }}-${{ hashFiles('deno.lock') }}
+
       - name: Setup repo
         uses: actions/checkout@v3
 

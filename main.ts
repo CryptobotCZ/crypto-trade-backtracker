@@ -7,8 +7,9 @@ import {
 import { global } from "./src/globals.ts";
 import { updateCacheStructure } from "./src/commands/update-cache.ts";
 import {installedExchanges} from "./src/exchanges/exchanges.ts";
+import { YargsInstance } from "https://deno.land/x/yargs@v17.7.2-deno/build/lib/yargs-factory.js";
 
-const addInputFilesArg = (yargs: any) => {
+const addInputFilesArg = (yargs: YargsInstance) => {
   yargs.positional("orderFiles", {
     describe:
       "Path to directory with order .json files or to individual order .json files",
@@ -16,7 +17,7 @@ const addInputFilesArg = (yargs: any) => {
   });
 };
 
-const addCornixConfigFile = (yargs: any) => {
+const addCornixConfigFile = (yargs: YargsInstance) => {
   yargs.option("cornixConfigFile", {
     describe:
       "Path to directory with order .json files or to individual order .json files",
@@ -24,7 +25,7 @@ const addCornixConfigFile = (yargs: any) => {
   });
 };
 
-const addCandlesFiles = (yargs: any) => {
+const addCandlesFiles = (yargs: YargsInstance) => {
   yargs.option("candlesFiles", {
     describe:
       "Path to directory with candles .json files or to individual candles .json files in Binance format",
@@ -32,14 +33,14 @@ const addCandlesFiles = (yargs: any) => {
   });
 };
 
-const addOutputPathArg = (yargs: any) => {
+const addOutputPathArg = (yargs: YargsInstance) => {
   yargs.option("outputPath", {
     describe: "Exported .csv file path",
     type: "string",
   });
 };
 
-const addDownloadExchangeData = (yargs: any) => {
+const addDownloadExchangeData = (yargs: YargsInstance) => {
   yargs.option("downloadBinanceData", {
     describe: "Download trade data from binance",
     type: "boolean",
@@ -59,7 +60,7 @@ const addDownloadExchangeData = (yargs: any) => {
   yargs.choices("exchange", installedExchanges.map(x => x.exchange.toLowerCase()));
 };
 
-const addDebugParam = (yargs: any) => {
+const addDebugParam = (yargs: YargsInstance) => {
   yargs.option("debug", {
     describe: "Debug",
     type: "boolean",
@@ -73,7 +74,7 @@ yargs.option("verbose", {
 });
 };
 
-const addDetailedLog = (yargs: any) => {
+const addDetailedLog = (yargs: YargsInstance) => {
   yargs.option("detailedLog", {
     describe: "Detailed log - run backtracing util full TP or SL",
     type: "boolean",
@@ -81,7 +82,7 @@ const addDetailedLog = (yargs: any) => {
   });
 };
 
-const addFromDetailedLog = (yargs: any) => {
+const addFromDetailedLog = (yargs: YargsInstance) => {
   yargs.option("fromDetailedLog", {
     describe: "Backtrack from detailed log file",
     type: "boolean",
@@ -89,7 +90,7 @@ const addFromDetailedLog = (yargs: any) => {
   });
 };
 
-const addDateRanges = (yargs: any) => {
+const addDateRanges = (yargs: YargsInstance) => {
     yargs.option("fromDate", {
         describe: "Backtrack orders opened after fromDate. Unix timestamp format in ms.", // 'yyyy-MM-dd hh:mm:ss' format o
         type: "string"
@@ -107,7 +108,7 @@ const addDateRanges = (yargs: any) => {
     });
 };
 
-const addCachePath = (yargs: any) => {
+const addCachePath = (yargs: YargsInstance) => {
   yargs.option("cachePath", {
     describe: "Path to cached candle data from Binance (or any compatible format)",
     type: "string",
@@ -130,11 +131,11 @@ const addOutputFormattingArgs = (yargs: any) => {
   yargs.choices('outputFormat', ['detailed', 'cornixLog']);
 };
 
-yargs(Deno.args)
+const input = yargs(Deno.args)
   .command(
     "backtrack <orderFiles...>",
     "Backtrack trades from input .json files",
-    (yargs: any) => {
+    (yargs: YargsInstance) => {
       addOutputPathArg(yargs);
       addInputFilesArg(yargs);
       addCornixConfigFile(yargs);
@@ -161,9 +162,9 @@ yargs(Deno.args)
       console.log(JSON.stringify(defaultCornixConfig));
     },
   )
-    .command('update-cache', 'Updates cache structure', (yargs) => {
+    .command('update-cache', 'Updates cache structure', (yargs: YargsInstance) => {
         addCachePath(yargs);
-    }, async (argv) => {
+    }, async (argv: Arguments) => {
         console.log("Updating cache structure...");
         await updateCacheStructure(argv.cachePath);
     })

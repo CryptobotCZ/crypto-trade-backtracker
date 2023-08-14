@@ -2,6 +2,35 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+## [0.6.0](https://cryptobot/CryptobotCZ/crypto-trade-backtracker/compare/v0.5.0...v0.6.0) (2023-08-14)
+
+
+### ⚠ BREAKING CHANGES
+
+* This change pretty much invalidates the cache
+* Changes the cache directory format.
+
+Run command `update-cache` to update existing cache directory.
+
+### Features
+
+* Add amount override ([8e0b9f6](https://cryptobot/CryptobotCZ/crypto-trade-backtracker/commit/8e0b9f653d99bacc29fada8b9500b1274fbe9dd1))
+* Add backtracking in "Account" mode ([29ac318](https://cryptobot/CryptobotCZ/crypto-trade-backtracker/commit/29ac31811836f8212fa326a6fee3a55041c45894))
+* Add support for ByBit exchange ([4d07cc8](https://cryptobot/CryptobotCZ/crypto-trade-backtracker/commit/4d07cc85876c5f6f938381597036eb3e9b230611))
+* Clear scriptName for standalone mode ([c5e5141](https://cryptobot/CryptobotCZ/crypto-trade-backtracker/commit/c5e5141489702f05ed54646af6d8c3f451b87d7f))
+* Change default config ([4c93419](https://cryptobot/CryptobotCZ/crypto-trade-backtracker/commit/4c93419fcb0a67a77ced727338d63d4fc652bf30))
+
+
+### Bug Fixes
+
+* ByBit API - make sure data is sorted and error properly handled ([ec543e5](https://cryptobot/CryptobotCZ/crypto-trade-backtracker/commit/ec543e5a45a6f96b674b458c2bcb8467911ee274))
+* Fix account mode ([c73b6a7](https://cryptobot/CryptobotCZ/crypto-trade-backtracker/commit/c73b6a7dae833aeb1890bfd996fb6d4d17266657))
+* Fix amount calculation for account mode ([5ee9c84](https://cryptobot/CryptobotCZ/crypto-trade-backtracker/commit/5ee9c847a954fc4d43566f7b76effa5ce5c7ab7b))
+* Fix bybit API - replace coin names ([aabc5bd](https://cryptobot/CryptobotCZ/crypto-trade-backtracker/commit/aabc5bde882db29c207c7e883a4641953f1f3682))
+* Fix calculateWeightedAverage ([99a6bc2](https://cryptobot/CryptobotCZ/crypto-trade-backtracker/commit/99a6bc228c9a4b58cbb13d4533e8ba4738b4ff2c))
+* Fix downloaded data interval ([4c2037d](https://cryptobot/CryptobotCZ/crypto-trade-backtracker/commit/4c2037d6f91a925d145150131bc07831ae6fa3f0))
+* Fix types ([8c3b701](https://cryptobot/CryptobotCZ/crypto-trade-backtracker/commit/8c3b701b832cd2bbe46a5c0dc0909d8e1f2db107))
+
 ## [0.5.0](https://cryptobot/CryptobotCZ/crypto-trade-backtracker/compare/v0.4.0...v0.5.0) (2023-08-02)
 
 

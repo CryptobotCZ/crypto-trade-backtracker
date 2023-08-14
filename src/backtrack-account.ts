@@ -199,7 +199,7 @@ export class AccountSimulation {
                 this.state.openOrdersUnrealizedProfit = 0;
 
                 for (const order of activeOrdersCopy) {
-                    const exchange = getExchange(order.order.exchange ?? this.state.args.exchange) ?? 'binance';
+                    const exchange = getExchange(order.order.exchange ?? this.state.args.exchange ?? 'binance') ?? 'binance';
                     const tradeEntry = await this.loadTradeDataForSymbol(order.order.coin, this.state.currentTime, exchange);
                     if (tradeEntry == null) {
                         console.log(`Missing trade data for ${order.order.coin}`);

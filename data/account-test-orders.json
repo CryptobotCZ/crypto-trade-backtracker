@@ -1,0 +1,817 @@
+[
+  {
+    "signalId": "DOTUSDT:LONG:4.925",
+    "amount": 24.99,
+    "coin": "DOTUSDT",
+    "direction": "LONG",
+    "date": "2023-06-30T03:45:03.000Z",
+    "leverage": 20,
+    "exchange": "Cross 20x",
+    "entries": [
+      5.104
+    ],
+    "tps": [
+      5.181,
+      5.242,
+      5.359
+    ],
+    "sl": 4.925,
+    "events": [
+      {
+        "type": "close",
+        "date": "2023-06-30T13:45:05.000Z"
+      }
+    ]
+  },
+  {
+    "signalId": "DOTUSDT:SHORT:5.176",
+    "amount": 25.07,
+    "coin": "DOTUSDT",
+    "direction": "SHORT",
+    "date": "2023-06-30T13:45:05.000Z",
+    "leverage": 20,
+    "exchange": "Cross 20x",
+    "entries": [
+      5.001
+    ],
+    "tps": [
+      4.926,
+      4.866,
+      4.751
+    ],
+    "sl": 5.176,
+    "events": [
+      {
+        "type": "cancelled",
+        "date": "2023-06-30T13:47:29.000Z"
+      }
+    ]
+  },
+  {
+    "signalId": "DOTUSDT:LONG:4.959",
+    "amount": 25,
+    "coin": "DOTUSDT",
+    "direction": "LONG",
+    "date": "2023-06-30T17:15:03.000Z",
+    "leverage": 20,
+    "exchange": "Cross 20x",
+    "entries": [
+      5.139
+    ],
+    "tps": [
+      5.216,
+      5.278,
+      5.396
+    ],
+    "sl": 4.959,
+    "events": [
+      {
+        "type": "close",
+        "date": "2023-07-02T03:45:03.000Z"
+      }
+    ]
+  },
+  {
+    "signalId": "DOTUSDT:SHORT:5.444",
+    "amount": 25.02,
+    "coin": "DOTUSDT",
+    "direction": "SHORT",
+    "date": "2023-07-02T03:45:03.000Z",
+    "leverage": 20,
+    "exchange": "Cross 20x",
+    "entries": [
+      5.26
+    ],
+    "tps": [
+      5.181,
+      5.118,
+      4.997
+    ],
+    "sl": 5.444,
+    "events": [
+      {
+        "type": "close",
+        "date": "2023-07-02T15:15:02.000Z"
+      }
+    ]
+  },
+  {
+    "signalId": "DOTUSDT:LONG:5.18",
+    "amount": 24.97,
+    "coin": "DOTUSDT",
+    "direction": "LONG",
+    "date": "2023-07-02T15:15:02.000Z",
+    "leverage": 20,
+    "exchange": "Cross 20x",
+    "entries": [
+      5.368
+    ],
+    "tps": [
+      5.449,
+      5.513,
+      5.636
+    ],
+    "sl": 5.18,
+    "events": [
+      {
+        "type": "close",
+        "date": "2023-07-04T09:00:06.000Z"
+      }
+    ]
+  },
+  {
+    "signalId": "DOTUSDT:LONG:5.288",
+    "amount": 24.91,
+    "coin": "DOTUSDT",
+    "direction": "LONG",
+    "date": "2023-07-04T03:45:02.000Z",
+    "leverage": 20,
+    "exchange": "Cross 20x",
+    "entries": [
+      5.48
+    ],
+    "tps": [
+      5.562,
+      5.628,
+      5.754
+    ],
+    "sl": 5.288,
+    "events": [
+      {
+        "type": "close",
+        "date": "2023-07-04T09:00:05.000Z"
+      }
+    ]
+  },
+  {
+    "signalId": "DOTUSDT:SHORT:5.599",
+    "amount": 24.98,
+    "coin": "DOTUSDT",
+    "direction": "SHORT",
+    "date": "2023-07-04T09:00:07.000Z",
+    "leverage": 20,
+    "exchange": "Cross 20x",
+    "entries": [
+      5.41
+    ],
+    "tps": [
+      5.329,
+      5.264,
+      5.14
+    ],
+    "sl": 5.599,
+    "events": [
+      {
+        "type": "close",
+        "date": "2023-07-04T11:15:01.000Z"
+      }
+    ]
+  },
+  {
+    "signalId": "DOTUSDT:LONG:5.29",
+    "amount": 25,
+    "coin": "DOTUSDT",
+    "direction": "LONG",
+    "date": "2023-07-04T11:15:02.000Z",
+    "leverage": 20,
+    "exchange": "Cross 20x",
+    "entries": [
+      5.482
+    ],
+    "tps": [
+      5.564,
+      5.63,
+      5.756
+    ],
+    "sl": 5.29,
+    "events": [
+      {
+        "type": "close",
+        "date": "2023-07-04T16:15:02.000Z"
+      }
+    ]
+  },
+  {
+    "signalId": "DOTUSDT:SHORT:5.591",
+    "amount": 25.05,
+    "coin": "DOTUSDT",
+    "direction": "SHORT",
+    "date": "2023-07-04T16:15:02.000Z",
+    "leverage": 20,
+    "exchange": "Cross 20x",
+    "entries": [
+      5.402
+    ],
+    "tps": [
+      5.321,
+      5.256,
+      5.132
+    ],
+    "sl": 5.591,
+    "events": []
+  },
+  {
+    "signalId": "DOTUSDT:LONG:5.06",
+    "amount": 24.99,
+    "coin": "DOTUSDT",
+    "direction": "LONG",
+    "date": "2023-07-06T05:45:04.000Z",
+    "leverage": 20,
+    "exchange": "Cross 20x",
+    "entries": [
+      5.244
+    ],
+    "tps": [
+      5.323,
+      5.386,
+      5.506
+    ],
+    "sl": 5.06,
+    "events": [
+      {
+        "type": "close",
+        "date": "2023-07-06T12:15:02.000Z"
+      }
+    ]
+  },
+  {
+    "signalId": "DOTUSDT:SHORT:5.388",
+    "amount": 25,
+    "coin": "DOTUSDT",
+    "direction": "SHORT",
+    "date": "2023-07-06T12:15:02.000Z",
+    "leverage": 20,
+    "exchange": "Cross 20x",
+    "entries": [
+      5.206
+    ],
+    "tps": [
+      5.128,
+      5.065,
+      4.946
+    ],
+    "sl": 5.388,
+    "events": [
+      {
+        "type": "close",
+        "date": "2023-07-07T09:30:02.000Z"
+      }
+    ]
+  },
+  {
+    "signalId": "DOTUSDT:LONG:4.951",
+    "amount": 24.91,
+    "coin": "DOTUSDT",
+    "direction": "LONG",
+    "date": "2023-07-07T09:30:02.000Z",
+    "leverage": 20,
+    "exchange": "Cross 20x",
+    "entries": [
+      5.131
+    ],
+    "tps": [
+      5.208,
+      5.27,
+      5.388
+    ],
+    "sl": 4.951,
+    "events": [
+      {
+        "type": "close",
+        "date": "2023-07-07T20:45:03.000Z"
+      }
+    ]
+  },
+  {
+    "signalId": "DOTUSDT:SHORT:5.257",
+    "amount": 24.99,
+    "coin": "DOTUSDT",
+    "direction": "SHORT",
+    "date": "2023-07-07T20:45:03.000Z",
+    "leverage": 20,
+    "exchange": "Cross 20x",
+    "entries": [
+      5.079
+    ],
+    "tps": [
+      5.003,
+      4.942,
+      4.825
+    ],
+    "sl": 5.257,
+    "events": [
+      {
+        "type": "close",
+        "date": "2023-07-10T09:30:02.000Z"
+      }
+    ]
+  },
+  {
+    "signalId": "DOTUSDT:LONG:4.892",
+    "amount": 25,
+    "coin": "DOTUSDT",
+    "direction": "LONG",
+    "date": "2023-07-10T09:30:02.000Z",
+    "leverage": 20,
+    "exchange": "Cross 20x",
+    "entries": [
+      5.069
+    ],
+    "tps": [
+      5.145,
+      5.206,
+      5.322
+    ],
+    "sl": 4.892,
+    "events": [
+      {
+        "type": "close",
+        "date": "2023-07-11T09:30:04.000Z"
+      }
+    ]
+  },
+  {
+    "signalId": "DOTUSDT:SHORT:5.294",
+    "amount": 24.99,
+    "coin": "DOTUSDT",
+    "direction": "SHORT",
+    "date": "2023-07-11T09:30:04.000Z",
+    "leverage": 20,
+    "exchange": "Cross 20x",
+    "entries": [
+      5.115
+    ],
+    "tps": [
+      5.038,
+      4.977,
+      4.859
+    ],
+    "sl": 5.294,
+    "events": [
+      {
+        "type": "close",
+        "date": "2023-07-11T15:15:05.000Z"
+      }
+    ]
+  },
+  {
+    "signalId": "DOTUSDT:LONG:4.98",
+    "amount": 25,
+    "coin": "DOTUSDT",
+    "direction": "LONG",
+    "date": "2023-07-11T15:15:05.000Z",
+    "leverage": 20,
+    "exchange": "Cross 20x",
+    "entries": [
+      5.161
+    ],
+    "tps": [
+      5.238,
+      5.3,
+      5.419
+    ],
+    "sl": 4.98,
+    "events": [
+      {
+        "type": "close",
+        "date": "2023-07-12T15:45:04.000Z"
+      }
+    ]
+  },
+  {
+    "signalId": "DOTUSDT:SHORT:5.358",
+    "amount": 25.04,
+    "coin": "DOTUSDT",
+    "direction": "SHORT",
+    "date": "2023-07-12T15:45:05.000Z",
+    "leverage": 20,
+    "exchange": "Cross 20x",
+    "entries": [
+      5.177
+    ],
+    "tps": [
+      5.099,
+      5.037,
+      4.918
+    ],
+    "sl": 5.358,
+    "events": []
+  },
+  {
+    "signalId": "DOTUSDT:LONG:5.207",
+    "amount": 24.99,
+    "coin": "DOTUSDT",
+    "direction": "LONG",
+    "date": "2023-07-17T03:45:04.000Z",
+    "leverage": 20,
+    "exchange": "Cross 20x",
+    "entries": [
+      5.396
+    ],
+    "tps": [
+      5.477,
+      5.542,
+      5.666
+    ],
+    "sl": 5.207,
+    "events": [
+      {
+        "type": "close",
+        "date": "2023-07-17T10:00:05.000Z"
+      }
+    ]
+  },
+  {
+    "signalId": "DOTUSDT:SHORT:5.478",
+    "amount": 24.98,
+    "coin": "DOTUSDT",
+    "direction": "SHORT",
+    "date": "2023-07-17T10:00:06.000Z",
+    "leverage": 20,
+    "exchange": "Cross 20x",
+    "entries": [
+      5.293
+    ],
+    "tps": [
+      5.214,
+      5.15,
+      5.028
+    ],
+    "sl": 5.478,
+    "events": []
+  },
+  {
+    "signalId": "DOTUSDT:LONG:5.145",
+    "coin": "DOTUSDT",
+    "direction": "LONG",
+    "date": "2023-07-18T00:30:03.000Z",
+    "leverage": 20,
+    "exchange": "Cross 20x",
+    "entries": [
+      5.332
+    ],
+    "tps": [
+      5.412,
+      5.476,
+      5.599
+    ],
+    "sl": 5.145,
+    "events": [
+      {
+        "type": "close",
+        "date": "2023-07-18T06:45:02.000Z"
+      }
+    ]
+  },
+  {
+    "signalId": "DOTUSDT:SHORT:5.398",
+    "coin": "DOTUSDT",
+    "direction": "SHORT",
+    "date": "2023-07-18T06:45:03.000Z",
+    "leverage": 20,
+    "exchange": "Cross 20x",
+    "entries": [
+      5.215
+    ],
+    "tps": [
+      5.137,
+      5.074,
+      4.954
+    ],
+    "sl": 5.398,
+    "events": []
+  },
+  {
+    "signalId": "DOTUSDT:SHORT:5.471",
+    "coin": "DOTUSDT",
+    "direction": "SHORT",
+    "date": "2023-07-20T16:30:04.000Z",
+    "leverage": 20,
+    "exchange": "Cross 20x",
+    "entries": [
+      5.286
+    ],
+    "tps": [
+      5.207,
+      5.143,
+      5.022
+    ],
+    "sl": 5.471,
+    "events": [
+      {
+        "type": "close",
+        "date": "2023-07-21T00:15:03.000Z"
+      }
+    ]
+  },
+  {
+    "signalId": "DOTUSDT:LONG:5.183",
+    "coin": "DOTUSDT",
+    "direction": "LONG",
+    "date": "2023-07-21T00:15:03.000Z",
+    "leverage": 20,
+    "exchange": "Cross 20x",
+    "entries": [
+      5.371
+    ],
+    "tps": [
+      5.452,
+      5.516,
+      5.64
+    ],
+    "sl": 5.183,
+    "events": []
+  },
+  {
+    "signalId": "DOTUSDT:SHORT:5.617",
+    "coin": "DOTUSDT",
+    "direction": "SHORT",
+    "date": "2023-07-21T08:00:02.000Z",
+    "leverage": 20,
+    "exchange": "Cross 20x",
+    "entries": [
+      5.427
+    ],
+    "tps": [
+      5.346,
+      5.28,
+      5.156
+    ],
+    "sl": 5.617,
+    "events": []
+  },
+  {
+    "signalId": "DOTUSDT:LONG:5.187",
+    "coin": "DOTUSDT",
+    "direction": "LONG",
+    "date": "2023-07-23T03:00:03.000Z",
+    "leverage": 20,
+    "exchange": "Cross 20x",
+    "entries": [
+      5.375
+    ],
+    "tps": [
+      5.456,
+      5.52,
+      5.644
+    ],
+    "sl": 5.187,
+    "events": []
+  },
+  {
+    "signalId": "DOTUSDT:SHORT:5.593",
+    "coin": "DOTUSDT",
+    "direction": "SHORT",
+    "date": "2023-07-23T21:30:08.000Z",
+    "leverage": 20,
+    "exchange": "Cross 20x",
+    "entries": [
+      5.404
+    ],
+    "tps": [
+      5.323,
+      5.258,
+      5.134
+    ],
+    "sl": 5.593,
+    "events": []
+  },
+  {
+    "signalId": "DOTUSDT:SHORT:5.343",
+    "coin": "DOTUSDT",
+    "direction": "SHORT",
+    "date": "2023-07-25T08:15:04.000Z",
+    "leverage": 20,
+    "exchange": "Cross 20x",
+    "entries": [
+      5.162
+    ],
+    "tps": [
+      5.085,
+      5.023,
+      4.904
+    ],
+    "sl": 5.343,
+    "events": [
+      {
+        "type": "close",
+        "date": "2023-07-26T03:15:04.000Z"
+      }
+    ]
+  },
+  {
+    "signalId": "DOTUSDT:LONG:5.011",
+    "coin": "DOTUSDT",
+    "direction": "LONG",
+    "date": "2023-07-26T03:15:04.000Z",
+    "leverage": 20,
+    "exchange": "Cross 20x",
+    "entries": [
+      5.193
+    ],
+    "tps": [
+      5.271,
+      5.333,
+      5.453
+    ],
+    "sl": 5.011,
+    "events": [
+      {
+        "type": "close",
+        "date": "2023-07-27T15:00:09.000Z"
+      }
+    ]
+  },
+  {
+    "signalId": "DOTUSDT:SHORT:5.416",
+    "coin": "DOTUSDT",
+    "direction": "SHORT",
+    "date": "2023-07-27T15:00:10.000Z",
+    "leverage": 20,
+    "exchange": "Cross 20x",
+    "entries": [
+      5.233
+    ],
+    "tps": [
+      5.155,
+      5.092,
+      4.971
+    ],
+    "sl": 5.416,
+    "events": [
+      {
+        "type": "close",
+        "date": "2023-07-28T12:30:08.000Z"
+      }
+    ]
+  },
+  {
+    "signalId": "DOTUSDT:LONG:5.055",
+    "coin": "DOTUSDT",
+    "direction": "LONG",
+    "date": "2023-07-28T12:30:09.000Z",
+    "leverage": 20,
+    "exchange": "Cross 20x",
+    "entries": [
+      5.238
+    ],
+    "tps": [
+      5.317,
+      5.379,
+      5.5
+    ],
+    "sl": 5.055,
+    "events": [
+      {
+        "type": "close",
+        "date": "2023-07-30T10:00:04.000Z"
+      }
+    ]
+  },
+  {
+    "signalId": "DOTUSDT:SHORT:5.413",
+    "coin": "DOTUSDT",
+    "direction": "SHORT",
+    "date": "2023-07-30T10:00:04.000Z",
+    "leverage": 20,
+    "exchange": "Cross 20x",
+    "entries": [
+      5.23
+    ],
+    "tps": [
+      5.152,
+      5.089,
+      4.969
+    ],
+    "sl": 5.413,
+    "events": []
+  },
+  {
+    "signalId": "DOTUSDT:LONG:5.045",
+    "coin": "DOTUSDT",
+    "direction": "LONG",
+    "date": "2023-07-31T00:45:05.000Z",
+    "leverage": 20,
+    "exchange": "Cross 20x",
+    "entries": [
+      5.228
+    ],
+    "tps": [
+      5.306,
+      5.369,
+      5.489
+    ],
+    "sl": 5.045,
+    "events": [
+      {
+        "type": "close",
+        "date": "2023-07-31T10:45:08.000Z"
+      }
+    ]
+  },
+  {
+    "signalId": "DOTUSDT:SHORT:5.348",
+    "coin": "DOTUSDT",
+    "direction": "SHORT",
+    "date": "2023-07-31T10:45:09.000Z",
+    "leverage": 20,
+    "exchange": "Cross 20x",
+    "entries": [
+      5.167
+    ],
+    "tps": [
+      5.089,
+      5.027,
+      4.909
+    ],
+    "sl": 5.348,
+    "events": []
+  },
+  {
+    "signalId": "DOTUSDT:SHORT:5.314",
+    "coin": "DOTUSDT",
+    "direction": "SHORT",
+    "date": "2023-08-02T12:45:03.000Z",
+    "leverage": 20,
+    "exchange": "Cross 20x",
+    "entries": [
+      5.134
+    ],
+    "tps": [
+      5.057,
+      4.995,
+      4.877
+    ],
+    "sl": 5.314,
+    "events": [
+      {
+        "type": "close",
+        "date": "2023-08-04T12:45:07.000Z"
+      }
+    ]
+  },
+  {
+    "signalId": "DOTUSDT:LONG:4.836",
+    "coin": "DOTUSDT",
+    "direction": "LONG",
+    "date": "2023-08-04T12:45:08.000Z",
+    "leverage": 20,
+    "exchange": "Cross 20x",
+    "entries": [
+      5.011
+    ],
+    "tps": [
+      5.086,
+      5.146,
+      5.262
+    ],
+    "sl": 4.836,
+    "events": [
+      {
+        "type": "close",
+        "date": "2023-08-04T18:45:04.000Z"
+      }
+    ]
+  },
+  {
+    "signalId": "DOTUSDT:SHORT:5.154",
+    "coin": "DOTUSDT",
+    "direction": "SHORT",
+    "date": "2023-08-04T18:45:05.000Z",
+    "leverage": 20,
+    "exchange": "Cross 20x",
+    "entries": [
+      4.98
+    ],
+    "tps": [
+      4.905,
+      4.846,
+      4.731
+    ],
+    "sl": 5.154,
+    "events": [
+      {
+        "type": "close",
+        "date": "2023-08-06T18:15:03.000Z"
+      }
+    ]
+  },
+  {
+    "signalId": "DOTUSDT:LONG:4.828",
+    "coin": "DOTUSDT",
+    "direction": "LONG",
+    "date": "2023-08-06T18:15:03.000Z",
+    "leverage": 20,
+    "exchange": "Cross 20x",
+    "entries": [
+      5.003
+    ],
+    "tps": [
+      5.078,
+      5.138,
+      5.253
+    ],
+    "sl": 4.828,
+    "events": []
+  }
+]

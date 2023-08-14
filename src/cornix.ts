@@ -58,8 +58,10 @@ export interface TrailingStopBreakevenPercent extends TrailingStopBreakeven {
 
 export type TrailingStop = TrailingStopWithout | TrailingStopMovingTarget | TrailingStopBreakevenTarget | TrailingStopBreakevenPercent;
 
+export type Amount = number | { type: 'percentage', percentage: number } | { type: 'risk-percentage', percentage: number };
+
 export interface CornixConfiguration {
-  amount: number;
+  amount: Amount;
   closeTradeOnTpSlBeforeEntry?: boolean;
   firstEntryGracePct?: number;
   entries: Strategy;
@@ -76,6 +78,7 @@ export interface CornixConfiguration {
     stopTimeoutMinutes?: number;
     stopType?: "Limit" | "Market";
   };
+  maxActiveOrders?: number;
 }
 
 export function getEntryZoneTargets(borders: number[], countTargets: number, direction: 'SHORT'|'LONG') {
@@ -248,12 +251,12 @@ export function validateOrder(order: Order) {
       console.log('For SHORT order, entries should be in ascending order');
       return false;
     }
-    
+
     if (!isArraySortedDesc(order.tps)) {
       console.log('For SHORT order, TPs should be in descending order');
       return false;
     }
-    
+
     if (order.tps[0] > order.entries[0]) {
       console.log('For SHORT trades, first TPs must be lower then entry price');
       return false;
@@ -274,11 +277,57 @@ export function validateOrder(order: Order) {
       return false;
     }
   }
-  
+
   return true;
 }
 
 export function getFlattenedCornixConfig(...config: CornixConfiguration[]) {
   // TODO: Add something like user override flag
   return config.reduce((flattened, current) => ({ ...flattened, ...current }), {} as CornixConfiguration);
+}
+
+export function getWeightedAverageEntryPrice(order: Order, config: CornixConfiguration) {
+  const entryType = order.entryType ?? config.entryType ?? 'target';
+
+  const direction = order.direction ?? (order.tps[0] > order.entries[0] ? "LONG" : "SHORT");
+  const entries = entryType === 'target'
+      ? order.entries
+      : getEntryZoneTargets(order.entries, config.entryZoneTargets ?? 4, direction);
+
+  if (entryType === 'zone') {
+    order.entryZone = order.entries;
+    order.entries = entries;
+  }
+
+  const remainingEntries = mapPriceTargets(entries, config.entries);
+  return calculateWeightedAverage(remainingEntries);
+}
+
+
+export function getOrderAmount(order: Order, cornixConfig: CornixConfiguration, availableBalance: number) {
+  const orderAmountConfig = order.amount ?? order.config?.amount ?? cornixConfig?.amount ?? 100;
+  let orderAmount = 0;
+
+  if (typeof orderAmountConfig === 'number') {
+    orderAmount = orderAmountConfig;
+  } else {
+    const amountInPercentage = (orderAmountConfig.percentage * availableBalance) / 100;
+
+    if (orderAmountConfig.type === 'percentage') {
+      orderAmount = amountInPercentage;
+    } else if (orderAmountConfig.type === 'risk-percentage') {
+      orderAmount = amountInPercentage;
+
+      if (order.sl != null) {
+        const averageEntryPrice = getWeightedAverageEntryPrice(order, cornixConfig);
+        const potentialLossPct = (averageEntryPrice - order.sl) / averageEntryPrice;
+        const riskPct = orderAmountConfig.percentage / 100;
+        const leverage = order.leverage ?? 1;
+        const positionSize = (riskPct * availableBalance) / (potentialLossPct * leverage);
+        orderAmount = positionSize;
+      }
+    }
+  }
+
+  return orderAmount;
 }

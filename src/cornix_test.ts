@@ -1,6 +1,6 @@
 ﻿import {
   calculateWeightedAverage,
-  getEntryZoneTargets, getNewStopLoss,
+  getEntryZoneTargets, getNewStopLoss, getOrderAmount,
   makeAutomaticLeverageAdjustment,
   mapPriceTargets,
   PriceTargetWithPrice, TrailingStop
@@ -342,4 +342,33 @@ Deno.test(function testTrailingSlMovingTarget1Trigger202() {
   const result = getNewStopLoss(mockState, 2);
 
   assertEquals(result, expected);
+});
+
+
+export function testGetOrderAmountRiskPercentage() {
+  const order = {
+    leverage: 5,
+    direction: 'LONG',
+    entries: [ 1000 ],
+    sl:  900, // max SL = 100/1000 = 10% * 5 = 50%
+  } as any;
+  const config = {
+    entries: 'Evenly Divided',
+    amount: { type: 'risk-percentage', percentage: 5 }
+  } as any;
+
+  const amount = getOrderAmount(order, config, 1000);
+  assertEquals(amount, 100);
+}
+
+Deno.test('Test getOrderAmount - risk percentage', testGetOrderAmountRiskPercentage);
+
+Deno.test(function testGetOrderAmountPercentage() {
+  const amount = getOrderAmount({} as any, { amount: { type: 'percentage', percentage: 5 } } as any, 1000);
+  assertEquals(amount, 50);
+});
+
+Deno.test(function testGetOrderAmountFixedAmount() {
+  const amount = getOrderAmount({ amount: { type: 'risk-percentage', percentage: 5 } } as any, { amount: 100 } as any, 1000);
+  assertEquals(amount, 100);
 });

@@ -3,14 +3,15 @@ import {exportCsv, exportCsvInCornixFormat} from "../output/csv.ts";
 
 import {
   AbstractState,
-  backtrack,
-  getBackTrackEngine,
+  backtrack, createLogger,
+  getBackTrackEngine, Logger,
   Order,
   TradeResult,
 } from "../backtrack-engine.ts";
 import {
   ApiError,
   getTradeDataWithCache,
+  loadDataFromCache,
   TradeData,
 } from "../exchanges/exchanges.ts";
 import {CornixConfiguration, getFlattenedCornixConfig, validateOrder} from "../cornix.ts";
@@ -19,8 +20,10 @@ import {
     createDurationFormatter,
     getDateFromTimestampOrDateStr,
     getFormattedTradeDuration,
-    getTradeDuration
+    getTradeDuration,
+    mapGetOrCreate,
 } from "../utils.ts";
+import {AccountSimulation, AccountState} from "../backtrack-account.ts";
 
 
 export interface DetailedBackTrackResult {
@@ -62,6 +65,10 @@ export interface BackTrackArgs {
   delimiter?: string;
   cachePath?: string;
   outputFormat?: 'detailed' | 'cornixLog';
+
+  maxActiveOrders?: number;
+  accountInitialBalance?: number;
+  accountMode?: boolean;
 }
 
 export const defaultCornixConfig: CornixConfiguration = {
@@ -99,7 +106,7 @@ function getFilteredOrders(orders: Order[], args: BackTrackArgs) {
   return orders;
 }
 
-function getSortedUniqueCrosses(result: BackTrackResult) {
+export function getSortedUniqueCrosses(result: BackTrackResult) {
   const crosses = result?.events?.filter((x) => x.type === "cross") ?? [];
   const uniqueCrosses: { [key: string]: any } = {};
 
@@ -124,7 +131,7 @@ function getSortedUniqueCrosses(result: BackTrackResult) {
   return sortedUniqueCrosses;
 }
 
-function writeSingleTradeResult(results: TradeResult) {
+export function writeSingleTradeResult(results: TradeResult) {
     console.log(`Open time: ${results.openTime}`);
     console.log(`Close time: ${results.closeTime}`);
     console.log(`Is closed: ${results.isClosed}`);
@@ -175,6 +182,7 @@ function calculateResultsSummary(ordersWithResults: DetailedBackTrackResult[]) {
     sum.countCancelledInLoss += (curr.info.isCancelled && !curr.info.isProfitable) ? 1 : 0;
     sum.totalReachedTps += curr.info.reachedTps;
     sum.countFullTp += curr.info.reachedAllTps ? 1 : 0;
+    sum.countOpen += curr.info.isClosed ? 0 : 1;
 
     sum.averageReachedTps = sum.totalReachedTps / sum.countOrders;
     sum.averagePnl = sum.totalPnl / sum.countOrders;
@@ -191,6 +199,7 @@ function calculateResultsSummary(ordersWithResults: DetailedBackTrackResult[]) {
     countProfitable: 0,
     countLossy: 0,
     countSL: 0,
+    countOpen: 0,
     countCancelled: 0,
     countCancelledProfitable: 0,
     countCancelledInLoss: 0,
@@ -211,6 +220,13 @@ function calculateResultsSummary(ordersWithResults: DetailedBackTrackResult[]) {
   return summary;
 }
 
+function writeAccountSimulationResultsSummary(result: AccountState) {
+  console.log(`Starting balance: ${result.initialBalance}`);
+  console.log(`End balance: ${result.availableBalance}`);
+  console.log(`In orders: ${result.balanceInOrders}`);
+  console.log(`Realized profit: ${result.closedOrdersProfit}`);
+}
+
 function writeResultsSummary(ordersWithResults: DetailedBackTrackResult[]) {
   const formatPct = (fractPct: number) => (fractPct * 100).toFixed(2);
   const summary = calculateResultsSummary(ordersWithResults);
@@ -224,6 +240,7 @@ function writeResultsSummary(ordersWithResults: DetailedBackTrackResult[]) {
   console.log(`Count Cancelled profitable: ${summary.countCancelledProfitable}`);
   console.log(`Count Cancelled in loss: ${summary.countCancelledInLoss}`);
   console.log(`Count hit all TPs: ${summary.countFullTp}`);
+  console.log(`Count still open: ${summary.countOpen}`);
 
   summary.tps.forEach((tp, index) => {
     console.log(`TP${index + 1}: ${tp.count} (${formatPct(tp.percentage)}%)`);
@@ -287,6 +304,42 @@ export async function backtrackCommand(args: BackTrackArgs) {
 
   writeResultsSummary(ordersWithResults);
   await writeResultsToFile(ordersWithResults, cornixConfig, args);
+}
+
+export async function backtrackInAccountModeCommand(args: BackTrackArgs) {
+    if (args.debug) {
+        console.log("Arguments: ");
+        console.log(JSON.stringify(args));
+    }
+
+    if (args.locale) {
+        durationFormatter = createDurationFormatter(args.locale, 'narrow');
+    }
+
+    let cornixConfig = await getCornixConfigFromFileOrDefault(args.cornixConfigFile, defaultCornixConfig);
+    cornixConfig = args?.detailedLog
+        ? { ...cornixConfig, trailingStop: { type: "without" } }
+        : cornixConfig;
+
+    const input = await getInput(args);
+    const orders = getFilteredOrders(input.orders, args);
+
+    const { account, result, ordersWithResults } = await runBacktrackingInAccountMode(args, orders, cornixConfig);
+
+    writeAccountSimulationResultsSummary(result);
+    writeResultsSummary(ordersWithResults);
+    await writeResultsToFile(ordersWithResults, cornixConfig, args);
+
+    return { account, result, info: account.info, ordersWithResults };
+}
+
+export async function runBacktrackingInAccountMode(args: BackTrackArgs, orders: Order[], cornixConfig: CornixConfiguration) {
+  const logger = createLogger();
+  const account = new AccountSimulation(args, orders, cornixConfig, logger);
+  const result = await account.runBacktrackingInAccountMode();
+  const ordersWithResults = account.getOrdersReport();
+
+  return { account, result, info: account.info, ordersWithResults, events: logger.events ?? [] };
 }
 
 export async function runBacktracking(

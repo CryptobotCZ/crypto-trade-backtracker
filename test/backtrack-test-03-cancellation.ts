@@ -116,6 +116,9 @@ export function testOrderCancelledInProfit() {
     unrealizedProfit: 0,
     reachedAllEntries: true,
     reachedAllTps: false,
+    boughtCoins: 0,
+    averageSalePrice: 0,
+    soldAmount: 0,
   };
 
   assertEquals(state.info, expectedInfo);
@@ -192,7 +195,7 @@ export function testOrderCancelledByEventType(type: string) {
     timestamp: new Date("2023-01-01T13:07:00.000Z").getTime()
   }]);
 
-  const expectedInfo = {
+  const expectedInfo: TradeResult = {
     reachedEntries: 1,
     reachedTps: 0,
     openTime: new Date('2023-01-01T13:04:30.000Z'),
@@ -210,6 +213,9 @@ export function testOrderCancelledByEventType(type: string) {
     unrealizedProfit: 0,
     reachedAllEntries: true,
     reachedAllTps: false,
+    boughtCoins: 0,
+    averageSalePrice: 0,
+    soldAmount: 0,
   };
 
   assertEquals(state.info, expectedInfo);

@@ -77,6 +77,9 @@ export function testSingleEntryPointKeepOpenUnrealizedProfit0() {
     unrealizedProfit: 0,
     reachedAllEntries: true,
     reachedAllTps: false,
+    boughtCoins: 0,
+    averageSalePrice: 0,
+    soldAmount: 0,
   };
 
   assertEquals(state.info, expectedInfo);
@@ -136,7 +139,7 @@ export function testSingleEntryPointKeepOpenWithUnrealizedProfit() {
     timestamp: 1686837000000
   }]);
 
-  const expectedInfo = {
+  const expectedInfo: TradeResult = {
     reachedEntries: 1,
     reachedTps: 1,
     openTime: new Date('2023-06-15T13:50:00.000Z'),
@@ -154,6 +157,9 @@ export function testSingleEntryPointKeepOpenWithUnrealizedProfit() {
     unrealizedProfit: 95,
     reachedAllEntries: true,
     reachedAllTps: false,
+    boughtCoins: 0,
+    averageSalePrice: 0,
+    soldAmount: 0,
   };
 
   assertEquals(state.info, expectedInfo);
@@ -209,6 +215,9 @@ export function testSingleEntrySingleTp() {
     closeTime: new Date('2023-06-15T13:50:00.000Z'),
     reachedAllEntries: true,
     reachedAllTps: false,
+    boughtCoins: 0,
+    averageSalePrice: 0,
+    soldAmount: 0,
   };
 
   assertEquals(state.info, expectedInfo);

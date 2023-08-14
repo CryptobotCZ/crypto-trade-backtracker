@@ -170,5 +170,10 @@ const input = yargs(Deno.args)
     })
   .strictCommands()
   .demandCommand(1)
-  .version("version", "0.3.0").alias("version", "V")
-  .argv;
+  .version("version", "0.3.0").alias("version", "V");
+
+if (Deno.execPath().indexOf("deno") === -1) {
+    input.scriptName('').parse();
+} else {
+    input.parse();
+}

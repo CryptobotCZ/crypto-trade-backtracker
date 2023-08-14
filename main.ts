@@ -115,7 +115,7 @@ const addCachePath = (yargs: YargsInstance) => {
   });
 };
 
-const addAccountMode = (yargs: any) => {
+const addAccountMode = (yargs: YargsInstance) => {
   yargs.option("accountMode", {
     describe: "Use account mode for backtracking and simulate the trade",
     type: "bool",
@@ -135,7 +135,7 @@ const addAccountMode = (yargs: any) => {
   });
 };
 
-const addOutputFormattingArgs = (yargs: any) => {
+const addOutputFormattingArgs = (yargs: YargsInstance) => {
   yargs.option('anonymize');
   yargs.option('locale', {
     type: 'string'

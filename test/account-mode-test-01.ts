@@ -4,7 +4,7 @@ import {BackTrackArgs, runBacktrackingInAccountMode} from "../src/commands/backt
 import { Order } from "../src/backtrack-engine.ts";
 import {CornixConfiguration, getOrderAmount} from "../src/cornix.ts";
 import {getInput} from "../src/import.ts";
-import {OrderWithResult} from "../src/backtrack-account.ts";
+import {AccountInfo, OrderWithResult} from "../src/backtrack-account.ts";
 
 const globalConfig: CornixConfiguration = {
     amount: 100,
@@ -145,7 +145,7 @@ export async function testOrdersInAccountMode() {
         timestamp: 1691069940000
     }]);
 
-    const expectedInfo = {
+    const expectedInfo: AccountInfo = {
         "initialBalance": 2500,
         "availableBalance": 2399.9866278585123,
         "balanceInOrders": 104.74103198199485,
@@ -156,9 +156,10 @@ export async function testOrdersInAccountMode() {
         "openOrdersUnrealizedProfit": 0,
         "openOrdersRealizedProfit": 4.727659840507187,
         "closedOrdersProfit": 4.727659840507187,
-        "largestAccountDrawdown": -7.299657534246762,
-        "largestAccountGain": 25.84246575342513,
-        "largestOrderGain": 25.84246575342513
+        "largestAccountDrawdownPct": -7.299657534246762,
+        "largestAccountGainPct": 25.84246575342513,
+        "largestOrderGainPct": 25.84246575342513,
+        "largestOrderDrawdownPct": 0,
     };
 
     assertEquals(info, expectedInfo);

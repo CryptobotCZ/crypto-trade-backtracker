@@ -54,6 +54,23 @@ export interface AccountState {
     logger: Logger;
 }
 
+export interface AccountInfo {
+    countSkippedOrders: number;
+    openOrdersUnrealizedProfit: number;
+    openOrdersProfit: number;
+    largestAccountGainPct: number;
+    closedOrdersProfit: number;
+    availableBalance: number;
+    largestOrderDrawdownPct: number;
+    countActiveOrders: number;
+    initialBalance: number;
+    balanceInOrders: number;
+    largestAccountDrawdownPct: number;
+    largestOrderGainPct: number;
+    openOrdersRealizedProfit: number;
+    countFinishedOrders: number;
+}
+
 export interface AccountDailyStats {
     accountBalance: number;
     balanceInOrders: number;
@@ -460,7 +477,7 @@ export class AccountSimulation {
         return coinData.get(date)!;
     }
 
-    get info() {
+    get info(): AccountInfo {
         return {
             initialBalance: this.state.initialBalance,
             availableBalance: this.state.availableBalance,

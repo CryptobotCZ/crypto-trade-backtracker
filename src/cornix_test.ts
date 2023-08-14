@@ -368,7 +368,12 @@ Deno.test(function testGetOrderAmountPercentage() {
   assertEquals(amount, 50);
 });
 
-Deno.test(function testGetOrderAmountFixedAmount() {
-  const amount = getOrderAmount({ amount: { type: 'risk-percentage', percentage: 5 } } as any, { amount: 100 } as any, 1000);
+Deno.test(function testGetOrderAmountFixedAmountOverride() {
+  const amount = getOrderAmount({ amount: { type: 'risk-percentage', percentage: 5 } } as any, { amount: 100, amountOverride: true } as any, 1000);
   assertEquals(amount, 100);
+});
+
+Deno.test(function testGetOrderAmountFixedAmountWithoutOverride() {
+  const amount = getOrderAmount({ amount: { type: 'percentage', percentage: 5 } } as any, { amount: 100 } as any, 1000);
+  assertEquals(amount, 50);
 });

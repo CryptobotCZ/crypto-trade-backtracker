@@ -62,6 +62,7 @@ export type Amount = number | { type: 'percentage', percentage: number } | { typ
 
 export interface CornixConfiguration {
   amount: Amount;
+  amountOverride?: boolean;
   closeTradeOnTpSlBeforeEntry?: boolean;
   firstEntryGracePct?: number;
   entries: Strategy;
@@ -305,7 +306,10 @@ export function getWeightedAverageEntryPrice(order: Order, config: CornixConfigu
 
 
 export function getOrderAmount(order: Order, cornixConfig: CornixConfiguration, availableBalance: number) {
-  const orderAmountConfig = order.amount ?? order.config?.amount ?? cornixConfig?.amount ?? 100;
+  const orderAmountConfig = cornixConfig.amount && cornixConfig.amountOverride 
+      ? cornixConfig.amount
+      : order.amount ?? order.config?.amount ?? cornixConfig?.amount ?? 100;
+
   let orderAmount = 0;
 
   if (typeof orderAmountConfig === 'number') {

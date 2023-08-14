@@ -210,6 +210,7 @@ export class AccountSimulation {
 
                 this.state.balanceInOrders = 0;
                 this.state.openOrdersUnrealizedProfit = 0;
+                this.state.openOrdersRealizedProfit = 0;
 
                 for (const order of activeOrdersCopy) {
                     const exchange = getExchange(order.order.exchange ?? this.state.args.exchange ?? 'binance') ?? 'binance';
@@ -277,6 +278,7 @@ export class AccountSimulation {
 
                     if (order.state.isClosed) {
                         this.state.openOrdersUnrealizedProfit -= order.state.profit
+                        this.state.openOrdersRealizedProfit -= order.state.realizedProfit;
                         this.state.closedOrdersProfit += order.state.profit;
 
                         this.state.finishedOrders.push(order);
@@ -289,6 +291,7 @@ export class AccountSimulation {
                         });
                     } else {
                         this.state.openOrdersUnrealizedProfit += order.state.unrealizedProfit;
+                        this.state.openOrdersRealizedProfit += order.state.realizedProfit;
                         currentDayStats.unrealizedProfitPerDay += order.state.unrealizedProfit;
                         this.state.balanceInOrders += order.state.remainingCoinsCurrentValue / order.state.leverage;
                     }

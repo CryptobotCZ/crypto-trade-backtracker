@@ -179,7 +179,7 @@ function getOrdersSummary(order: OrderWithResult[]) {
 }
 
 export async function testRealWorldOrdersInAccountMode() {
-    const { orders } = await getInput({ orderFiles: [ "../data/account-test-orders.json" ] });
+    const { orders } = await getInput({ orderFiles: [ "./data/account-test-orders.json" ] });
     const config: CornixConfiguration = {
         amount: 25,
         entries: 'Evenly Divided',
@@ -218,8 +218,8 @@ export async function testRealWorldOrdersInAccountMode() {
         "countSkippedOrders": 0,
         "openOrdersProfit": 0,
         "openOrdersUnrealizedProfit": 0,
-        "openOrdersRealizedProfit": 85.26662087624561,
-        "closedOrdersProfit": 85.3790422499105,
+        "openOrdersRealizedProfit": 0,
+        "closedOrdersProfit": 85.3790422499095,
         "largestAccountDrawdownPct": -69.95802518488904,
         "largestAccountGainPct": 118.74352331606201,
         "largestOrderDrawdownPct": -69.95802518488904,

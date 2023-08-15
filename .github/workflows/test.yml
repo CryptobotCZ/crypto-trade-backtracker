@@ -29,7 +29,7 @@ jobs:
       DENO_DIR: my_cache_directory
     steps:
       - name: Cache Deno dependencies
-        uses: actions/cache@v2
+        uses: actions/cache@v3
         with:
           path: ${{ env.DENO_DIR }}
           key: ${{ secrets.CACHE_VERSION }}-${{ hashFiles('deno.lock') }}

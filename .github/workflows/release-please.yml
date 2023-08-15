@@ -90,6 +90,8 @@ jobs:
 
       - uses: google-github-actions/release-please-action@v3
         id: release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GH_TOKEN }}
         with:
           release-type: simple
 
@@ -98,7 +100,7 @@ jobs:
         run: |
           git config user.name github-actions[bot]
           git config user.email 41898282+github-actions[bot]@users.noreply.github.com
-          git remote add gh-token "https://${{ secrets.GITHUB_TOKEN }}@github.com/CryptobotCZ/crypto-trade-backtracker.git"
+          git remote add gh-token "https://${{ secrets.GH_TOKEN }}@github.com/CryptobotCZ/crypto-trade-backtracker.git"
           git tag -d v${{ steps.release.outputs.major }} || true
           git tag -d v${{ steps.release.outputs.major }}.${{ steps.release.outputs.minor }} || true
           git push origin :v${{ steps.release.outputs.major }} || true
@@ -113,7 +115,7 @@ jobs:
       - name: Upload Release Artifact
         if: ${{ steps.release.outputs.release_created }}
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.GH_TOKEN }}
         run:
           gh release upload ${{ steps.release.outputs.tag_name }} build/artifact/*
 

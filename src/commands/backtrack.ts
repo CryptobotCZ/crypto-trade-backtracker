@@ -178,6 +178,7 @@ function calculateResultsSummary(ordersWithResults: DetailedBackTrackResult[]) {
     sum.countSL += (curr.info.hitSl && !curr.info.isProfitable) ? 1 : 0;
     sum.countSlAfterTp += (curr.info.hitSl && curr.info.isProfitable) ? 1 : 0;
     sum.countCancelled += curr.info.isCancelled ? 1 : 0;
+    sum.countHitSlOrTpBeforeEntry += (curr.info.isCancelled && curr.info.reachedEntries === 0 && (curr.info.hitSl || curr.info.reachedTps > 0)) ? 1 : 0;
     sum.countCancelledProfitable += (curr.info.isCancelled && curr.info.isProfitable) ? 1 : 0;
     sum.countCancelledInLoss += (curr.info.isCancelled && !curr.info.isProfitable) ? 1 : 0;
     sum.totalReachedTps += curr.info.reachedTps;
@@ -190,7 +191,10 @@ function calculateResultsSummary(ordersWithResults: DetailedBackTrackResult[]) {
 
     sum.pctSl = sum.countSL / sum.countOrders;
 
-    sumEntriesOrTps(sum.tps, curr.info.reachedTps, sum.countOrders);
+    if (curr.info.reachedEntries > 0) {
+      sumEntriesOrTps(sum.tps, curr.info.reachedTps, sum.countOrders);
+    }
+
     sumEntriesOrTps(sum.entries, curr.info.reachedEntries, sum.countOrders);
 
     return sum;
@@ -203,6 +207,7 @@ function calculateResultsSummary(ordersWithResults: DetailedBackTrackResult[]) {
     countCancelled: 0,
     countCancelledProfitable: 0,
     countCancelledInLoss: 0,
+    countHitSlOrTpBeforeEntry: 0,
     countSlAfterTp: 0,
     countFullTp: 0,
     totalPnl: 0,
@@ -236,6 +241,7 @@ function writeResultsSummary(ordersWithResults: DetailedBackTrackResult[]) {
   console.log(`Count Profitable: ${summary.countProfitable} (${formatPct(summary.countProfitable / summary.countOrders)}%)`);
   console.log(`Count SL: ${summary.countSL} (${formatPct(summary.countSL / summary.countOrders)}%)`);
   console.log(`Count SL after TP: ${summary.countSlAfterTp}`);
+  console.log(`Count SL or TP before entry: ${summary.countHitSlOrTpBeforeEntry} (${formatPct(summary.countHitSlOrTpBeforeEntry / summary.countOrders)}%)`);
   console.log(`Count Cancelled: ${summary.countCancelled}`);
   console.log(`Count Cancelled profitable: ${summary.countCancelledProfitable}`);
   console.log(`Count Cancelled in loss: ${summary.countCancelledInLoss}`);

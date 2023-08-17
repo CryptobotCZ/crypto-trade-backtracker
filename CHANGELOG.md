@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+## [0.6.2](https://github.com/CryptobotCZ/crypto-trade-backtracker/compare/v0.6.1...v0.6.2) (2023-08-17)
+
+
+### Bug Fixes
+
+* Automatically replace version during build ([fab94ed](https://github.com/CryptobotCZ/crypto-trade-backtracker/commit/fab94edb4fdf6c52fbd47f760f92e7f0945c389f))
+
 ## [0.6.1](https://github.com/CryptobotCZ/crypto-trade-backtracker/compare/v0.6.0...v0.6.1) (2023-08-17)
 
 

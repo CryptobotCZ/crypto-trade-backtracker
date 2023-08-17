@@ -53,6 +53,12 @@ jobs:
       - name: Run tests
         run: deno test -A
 
+      - name: Replace version
+        shell: bash
+        run: |
+          VERSION=`cat version.txt`
+          sed -i "s/{{VERSION}}/$VERSION/g" main.ts
+
       - name: Compile MAC
         if: ${{ matrix.os == 'macos-latest' }}
         run: |

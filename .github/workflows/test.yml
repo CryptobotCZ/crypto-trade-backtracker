@@ -21,6 +21,9 @@ permissions:
 
 jobs:
   os_matrix:
+    concurrency:
+      group: ci-build-backtracking-${{ github.ref }}
+      cancel-in-progress: true
     strategy:
       matrix:
         os: [ ubuntu-latest, windows-latest, macos-latest ]

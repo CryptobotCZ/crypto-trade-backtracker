@@ -54,6 +54,14 @@ jobs:
         run: deno test -A
 
       - name: Replace version
+        if: ${{ matrix.os == 'macos-latest' }}
+        shell: bash
+        run: |
+          VERSION=`cat version.txt`
+          sed -i'backup' -E "s/{{VERSION}}/$VERSION/g" main.ts
+
+      - name: Replace version
+        if: ${{ matrix.os != 'macos-latest' }}
         shell: bash
         run: |
           VERSION=`cat version.txt`

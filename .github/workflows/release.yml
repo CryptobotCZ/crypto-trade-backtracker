@@ -15,7 +15,8 @@ on:
       - "v*.*.*"
 
 permissions:
-  contents: write
+  contents: write # to create release commit (google-github-actions/release-please-action)
+  pull-requests: write # to create release PR (google-github-actions/release-please-action)
 
 jobs:
   build_and_test:
@@ -52,16 +53,30 @@ jobs:
       - name: Run tests
         run: deno test -A
 
+      - name: Replace version
+        if: ${{ matrix.os == 'macos-latest' }}
+        shell: bash
+        run: |
+          VERSION=`cat version.txt`
+          sed -i'backup' -E "s/{{VERSION}}/$VERSION/g" main.ts
+
+      - name: Replace version
+        if: ${{ matrix.os != 'macos-latest' }}
+        shell: bash
+        run: |
+          VERSION=`cat version.txt`
+          sed -i "s/{{VERSION}}/$VERSION/g" main.ts
+
       - name: Compile MAC
         if: ${{ matrix.os == 'macos-latest' }}
         run: |
-          deno compile --allow-all main.ts --target aarch64-apple-darwin --output build/backtracking_mac_arm
-          deno compile --allow-all main.ts --target x86_64-apple-darwin --output build/backtracking_mac_x64
+          deno compile --allow-all main.ts --target aarch64-apple-darwin --output build/backtracking.mac-darwin.arm64
+          deno compile --allow-all main.ts --target x86_64-apple-darwin --output build/backtracking.mac-darwin.x64
 
       - name: Compile Windows
         if: ${{ matrix.os == 'windows-latest' }}
         run: |
-          deno compile --allow-all main.ts --output build/backtracking.exe
+          deno compile --allow-all main.ts --output build/backtracking.x64.exe
 
       - name: Compile Linux
         if: ${{ matrix.os == 'ubuntu-latest' }}

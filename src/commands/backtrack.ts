@@ -267,7 +267,7 @@ function writeResultsSummary(ordersWithResults: DetailedBackTrackResult[]) {
 async function writeResultsToFile(ordersWithResults: DetailedBackTrackResult[], config: CornixConfiguration, args: BackTrackArgs) {
   if (args.detailedLog) {
     const fileName = args.outputPath ?? `backtrack-results-${Date.now()}.json`;
-    await writeJson(fileName, ordersWithResults, { spaces: 2 });
+    await exportDetailedLog(fileName, ordersWithResults);
   } else if (args.outputPath?.indexOf(".csv") !== -1) {
     const fileName = args.outputPath ?? `backtrack-results-${Date.now()}.csv`;
 
@@ -310,6 +310,23 @@ export async function backtrackCommand(args: BackTrackArgs) {
 
   writeResultsSummary(ordersWithResults);
   await writeResultsToFile(ordersWithResults, cornixConfig, args);
+}
+
+export async function exportDetailedLog(fileName: string, ordersWithResults: DetailedBackTrackResult[]) {
+  const fixEntries = (order: Order) => {
+    if (order?.entries?.length > 2 && (order?.entryZone?.length ?? 0) > 0) {
+      return { ...order, entries: order?.entryZone ?? [] };
+    }
+
+    return order;
+  };
+
+  const fixedOrders = ordersWithResults.map(x => ({ 
+      ...x,
+      order: fixEntries(x.order), 
+  }));
+
+  await writeJson(fileName, fixedOrders, { spaces: 2 });
 }
 
 export async function backtrackInAccountModeCommand(args: BackTrackArgs) {

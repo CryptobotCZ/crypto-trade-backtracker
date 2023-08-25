@@ -466,6 +466,7 @@ export abstract class AbstractState {
 
     this.state.logger.log({
       type: "buy",
+      entry: openedEntry.id,
       price: openedEntry.price,
       spent: spentOnEntry,
       spentWithLeverage: spentOnEntryWithLeverage,

@@ -2,6 +2,19 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+## [0.7.0](https://github.com/CryptobotCZ/crypto-trade-backtracker/compare/v0.6.2...v0.7.0) (2023-08-25)
+
+
+### Features
+
+* Log entry point id for buy events ([62c7e7a](https://github.com/CryptobotCZ/crypto-trade-backtracker/commit/62c7e7ac5160b3e682d7b4ee1c98fe029c1672fc))
+
+
+### Bug Fixes
+
+* Fix exporting detailed log ([ba0e5b6](https://github.com/CryptobotCZ/crypto-trade-backtracker/commit/ba0e5b6a876dd0ba83daad94f287110910174cd5))
+* Fix rounding errors for sum of entries ([1940df1](https://github.com/CryptobotCZ/crypto-trade-backtracker/commit/1940df18864f64d07a2141e8b080e83ded43ec17))
+
 ## [0.6.2](https://github.com/CryptobotCZ/crypto-trade-backtracker/compare/v0.6.1...v0.6.2) (2023-08-17)
 
 

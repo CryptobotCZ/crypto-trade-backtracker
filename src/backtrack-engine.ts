@@ -609,7 +609,7 @@ class InitialState extends AbstractState {
     const remainingEntries = mapPriceTargets(entries, config.entries);
     const remainingTps = mapPriceTargets(order.tps, config.tps);
 
-    if (sumPct(remainingEntries) !== 100) {
+    if (Math.abs(sumPct(remainingEntries) - 100.0) > 0.1) {
       throw new Error("entries percentage must add to 100%");
     }
 

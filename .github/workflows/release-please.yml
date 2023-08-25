@@ -104,6 +104,7 @@ jobs:
           release-type: simple
 
       - name: Upload Release Artifact
+        if: ${{ steps.release.outputs.release_created }}
         uses: softprops/action-gh-release@v1
         with:
           files: |

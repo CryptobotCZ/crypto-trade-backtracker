@@ -7,6 +7,8 @@ import {
 import { global } from "./src/globals.ts";
 import { updateCacheStructure } from "./src/commands/update-cache.ts";
 import {installedExchanges} from "./src/exchanges/exchanges.ts";
+import {serve} from "https://deno.land/std@0.194.0/http/server.ts";
+import {addPort, addServerArgs, reqHandler, startServer} from "./charts/server.ts";
 
 const addInputFilesArg = (yargs: YargsInstance) => {
   yargs.positional("orderFiles", {
@@ -187,12 +189,20 @@ const input = yargs(Deno.args)
       console.log(JSON.stringify(defaultCornixConfig));
     },
   )
-    .command('update-cache', 'Updates cache structure', (yargs: YargsInstance) => {
-        addCachePath(yargs);
-    }, async (argv: Arguments) => {
-        console.log("Updating cache structure...");
-        await updateCacheStructure(argv.cachePath);
-    })
+  .command('update-cache', 'Updates cache structure', (yargs: YargsInstance) => {
+      addCachePath(yargs);
+  }, async (argv: Arguments) => {
+      console.log("Updating cache structure...");
+      await updateCacheStructure(argv.cachePath);
+  })
+  .command(
+      "server <orderFiles...>",
+      "Start chart server",
+      (yargs: YargsInstance) => {
+          addServerArgs(yargs);
+      },
+      startServer,
+  )
   .strictCommands()
   .demandCommand(1)
   .version("version", "{{VERSION}}").alias("version", "V");

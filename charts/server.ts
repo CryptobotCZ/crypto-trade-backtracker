@@ -57,7 +57,7 @@ async function readFile(fileName: string) {
   }
 }
 
-const reqHandler = async (req: Request) => {
+export const reqHandler = async (req: Request) => {
   const __dirname = path.dirname(path.fromFileUrl(import.meta.url));
   const urlPathName = new URL(req.url).pathname;
   let filePath = path.join(__dirname, urlPathName);
@@ -106,7 +106,7 @@ const reqHandler = async (req: Request) => {
   });
 };
 
-const addInputFilesArg = (yargs: any) => {
+export const addInputFilesArg = (yargs: any) => {
   yargs.positional("orderFiles", {
     describe:
       "Path to directory with order .json files or to individual order .json files",
@@ -114,7 +114,7 @@ const addInputFilesArg = (yargs: any) => {
   });
 };
 
-const addPort = (yargs: any) => {
+export const addPort = (yargs: any) => {
   yargs.option("port", {
     describe: "Port server will listen on",
     type: "number",
@@ -122,22 +122,14 @@ const addPort = (yargs: any) => {
   });
 };
 
+export const addServerArgs = (yargs: any) => {
+  addPort(yargs);
+  addInputFilesArg(yargs);
+};
+
 const global = { inputArguments: null } as any;
 
-yargs(Deno.args)
-  .command(
-    "start <orderFiles...>",
-    "Start chart server",
-    (yargs: any) => {
-      addPort(yargs);
-      addInputFilesArg(yargs);
-    },
-    async (argv: Arguments) => {
-      global.inputArguments = argv;
-      await serve(reqHandler, { port: argv.port ?? 8080 });
-    },
-  )
-  .strictCommands()
-  .demandCommand(1)
-  .version("version", "0.0.1").alias("version", "V")
-  .parse();
+export async function startServer(argv: Arguments) {
+    global.inputArguments = argv;
+    await serve(reqHandler, { port: argv.port ?? 8080 });
+}

@@ -1,6 +1,27 @@
-﻿import { LitElement, html } from './libs/lit-core.min.js';
+﻿import { LitElement, html, css } from './libs/lit-core.min.js';
+
+const intl = new Intl.DateTimeFormat(undefined,
+        { dateStyle: 'short', timeStyle: 'short', timeZone: 'UTC' });
+
+function formatDate(date) {
+    if (date == null) {
+        return '';
+    }
+    
+    if (typeof date === 'string') {
+        date = new Date(date);
+    }
+
+    return intl.format(date);
+}
 
 export class TradeInfo extends LitElement {
+    static styles = css`
+        :host {
+          display: flex;
+        }
+    `;
+
     static get properties() {
         return { 
             trade: { type: Object }
@@ -9,13 +30,28 @@ export class TradeInfo extends LitElement {
 
     render() {
         const trade = this.trade;
+        const events = trade?.events ?? [];
+        const filteredEvents = events?.filter(x => x.type === 'sell' || x.type === 'buy' || x.type === 'sl');
 
         return html`
-            <div>
+            <div class="main">
                 <strong>Coin ${trade?.order?.coin}</strong>
+                <p>Open Time: ${formatDate(trade?.order?.date)}</p>
+                <p>Close Time: ${formatDate(trade?.info?.closeTime)}</p>
                 <p>Entries: ${trade?.order?.entries?.join(', ')}</p>
                 <p>TPs: ${trade?.order?.tps?.join(', ')}</p>
                 <p>SL: ${trade?.order?.sl}</p>
+                <p>PNL: ${trade?.info?.pnl}</p>
+                <p>Entries hit: ${trade?.info?.reachedEntries}</p>
+                <p>TPs hit: ${trade?.info?.reachedTps}</p>
+            </div>
+            <div class="events">
+                <strong>Events</strong>
+                <ul>
+                    ${filteredEvents.map(e => html`<li>
+                        ${e.type} - ${formatDate(e.timestamp)}
+                    </li>`)}
+                </ul>
             </div>
         `;
     }
@@ -350,4 +386,16 @@ async function drawTrade(trade) {
     const tradeOpenMarker = createChartMarker(new Date(trade.order.date) / 1000, 'open', 'open');
 
     series.setMarkers([ tradeOpenMarker, ...eventMarkers, ...crossMarkers ]);
+
+    const position = data.length / 2; // chart.timeScale().timeToCoordinate(openTime);
+    chart.timeScale().scrollToPosition(position);
+
+    const interval = '1h';
+    const intervalToMin = interval === '1h' ? 60 : 1;
+    const diffFromRange = 3 * intervalToMin * 60 * 1000;
+
+    chart.timeScale().setVisibleRange({
+        from: (openTimeUTC - diffFromRange) / 1000,
+        to: ((new Date().getTime()) + diffFromRange) / 1000
+    });
 }

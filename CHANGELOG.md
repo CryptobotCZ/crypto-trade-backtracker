@@ -2,6 +2,14 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+## [0.8.0](https://github.com/CryptobotCZ/crypto-trade-backtracker/compare/v0.7.0...v0.8.0) (2023-08-27)
+
+
+### Features
+
+* Include charts server in main backtrack script ([9ac4f72](https://github.com/CryptobotCZ/crypto-trade-backtracker/commit/9ac4f72a9e855db1f8b2293e3b3cccf0858994fe))
+* Update charts server, add more details ([1ec78aa](https://github.com/CryptobotCZ/crypto-trade-backtracker/commit/1ec78aa16c26a6011567fc9a4182ccc8a0039f96))
+
 ## [0.7.0](https://github.com/CryptobotCZ/crypto-trade-backtracker/compare/v0.6.2...v0.7.0) (2023-08-25)
 
 

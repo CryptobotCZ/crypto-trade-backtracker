@@ -80,6 +80,7 @@ export interface CornixConfiguration {
     stopType?: "Limit" | "Market";
   };
   maxActiveOrders?: number;
+  positionMode?: 'One-Way Mode' | 'Hedge Mode';
 }
 
 export function getEntryZoneTargets(borders: number[], countTargets: number, direction: 'SHORT'|'LONG') {

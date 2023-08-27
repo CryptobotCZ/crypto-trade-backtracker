@@ -28,6 +28,7 @@ export interface AccountState {
     remainingOrders: Order[];
     skippedOrders: SkippedOrder[];
     activeOrders: OrderState[];
+    activeOrdersPerCoin: Map<string, OrderState[]>;
     finishedOrders: OrderState[];
 
     initialBalance: number;
@@ -100,6 +101,7 @@ export class AccountSimulation {
 
         remainingOrders: [],
         activeOrders: [],
+        activeOrdersPerCoin: new Map<string, OrderState[]>(),
         skippedOrders: [],
         finishedOrders: [],
 
@@ -431,14 +433,14 @@ export class AccountSimulation {
         if (!validateOrder(order)) {
             console.log(JSON.stringify(order, undefined, 2));
             console.log('Invalid order, skipping...');
-        } else {
-            this.state.activeOrders.push({
-                order,
-                state,
-                events,
-                config: updatedCornixConfig,
-            });
         }
+
+        this.state.activeOrders.push({
+          order,
+          state,
+          events,
+          config: updatedCornixConfig,
+        });
 
         const balanceAfter = this.state.availableBalance;
         this.state.logger.log({
@@ -448,6 +450,11 @@ export class AccountSimulation {
             balanceAfter,
             time: this.state.currentTime,
         });
+
+        const positionMode = cornixConfig?.positionMode ?? 'One-Way Mode';
+        if (positionMode === 'One-Way Mode') {
+          
+        }
     }
 
     async loadTradeDataForAllSymbols(symbols: string[], startDate: number, exchange = 'binance', interval = '1m', count = 1440) {

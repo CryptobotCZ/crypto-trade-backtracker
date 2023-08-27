@@ -78,10 +78,11 @@ const reqHandler = async (req: Request) => {
       );
       json = JSON.stringify(directoryContent);
     }
+    const length = (json ?? '').length?.toString();
 
     return new Response(json, {
       headers: {
-        "content-length": json?.length?.toString(),
+        "content-length": length,
         "content-type": "application/json",
       },
     });
@@ -139,4 +140,4 @@ yargs(Deno.args)
   .strictCommands()
   .demandCommand(1)
   .version("version", "0.0.1").alias("version", "V")
-  .argv;
+  .parse();

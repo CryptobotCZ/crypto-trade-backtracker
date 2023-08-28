@@ -70,18 +70,54 @@ jobs:
       - name: Compile MAC
         if: ${{ matrix.os == 'macos-latest' }}
         run: |
-          deno compile --allow-all main.ts --target aarch64-apple-darwin --output build/backtracking.mac-darwin.arm64
-          deno compile --allow-all main.ts --target x86_64-apple-darwin --output build/backtracking.mac-darwin.x64
+          mkdir build-x64
+          mkdir build-arm64
+          deno compile --allow-all main.ts --target aarch64-apple-darwin --output build-x64/backtracking
+          deno compile --allow-all main.ts --target x86_64-apple-darwin --output build-arm64/backtracking
+          cp -r charts build-x64/
+          cp -r charts build-arm64/
+
+      - uses: vimtor/action-zip@v1.1
+        if: ${{ matrix.os == 'macos-latest' }}
+        with:
+          files: build-x64/
+          recursive: true
+          dest: build/backtracking-x86_64-apple-darwin.zip
+
+      - uses: vimtor/action-zip@v1.1
+        if: ${{ matrix.os == 'macos-latest' }}
+        with:
+          files: build-arm64/
+          recursive: true
+          dest: build/backtracking-aarch64-apple-darwin.zip
 
       - name: Compile Windows
         if: ${{ matrix.os == 'windows-latest' }}
         run: |
-          deno compile --allow-all main.ts --output build/backtracking.x64.exe
+          mkdir build-x64
+          deno compile --allow-all main.ts --output build-x64/backtracking.exe
+          cp -r charts build-x64
+
+      - uses: vimtor/action-zip@v1.1
+        if: ${{ matrix.os == 'windows-latest' }}
+        with:
+          files: build-x64/
+          recursive: true
+          dest: build/backtracking-x86_64-pc-windows.zip
 
       - name: Compile Linux
         if: ${{ matrix.os == 'ubuntu-latest' }}
         run: |
-          deno compile --allow-all main.ts --output build/backtracking_linux
+          mkdir build-x64
+          deno compile --allow-all main.ts --output build-x64/backtracking
+          cp -r charts build-x64/
+
+      - uses: vimtor/action-zip@v1.1
+        if: ${{ matrix.os == 'ubuntu-latest' }}
+        with:
+          files: build-x64/
+          recursive: true
+          dest: build/backtracking-x86_64-pc-linux.zip
 
       - uses: actions/upload-artifact@v3
         with:

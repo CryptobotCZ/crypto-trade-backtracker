@@ -1,10 +1,16 @@
 ﻿// due to CORS policies in browsers, it is difficult to import local files, so server is needed
 import { serve } from "https://deno.land/std@0.194.0/http/mod.ts";
 import { lookup } from "https://deno.land/x/media_types@deprecated/mod.ts";
-import yargs from "https://deno.land/x/yargs@v17.7.2-deno/deno.ts";
 import { Arguments } from "https://deno.land/x/yargs@v17.7.2-deno/deno-types.ts";
 import * as fs from "https://deno.land/std@0.192.0/fs/mod.ts";
 import * as path from "https://deno.land/std@0.188.0/path/mod.ts";
+import {getProgramDirectory} from "../src/deno_utils.ts";
+
+function log(message: string, level = 'debug') {
+  if (global?.inputArguments?.debug && level === 'debug' || level !== 'debug') {
+    console.log(message);
+  }
+}
 
 async function getFilesFromDirectory(input: string|string[]) {
   const inputPaths = Array.isArray(input) ? input : [input];
@@ -58,7 +64,7 @@ async function readFile(fileName: string) {
 }
 
 export const reqHandler = async (req: Request) => {
-  const __dirname = path.dirname(path.fromFileUrl(import.meta.url));
+  const __dirname = path.join(getProgramDirectory(), 'charts');
   const urlPathName = new URL(req.url).pathname;
   let filePath = path.join(__dirname, urlPathName);
 
@@ -71,8 +77,10 @@ export const reqHandler = async (req: Request) => {
     let json = null;
 
     if (fileToRead != null) {
+      log(`Serving file: ${fileToRead}`, 'debug');
       json = await readFile(fileToRead);
     } else {
+      log(`Serving directory: ${global.inputArguments.orderFiles}`, 'debug');
       const directoryContent = await getFilesFromDirectory(
         global.inputArguments.orderFiles,
       );
@@ -90,6 +98,7 @@ export const reqHandler = async (req: Request) => {
 
   let fileSize;
   try {
+    log(`Loading content for file: ${filePath}`, 'debug');
     fileSize = (await Deno.stat(filePath)).size;
   } catch (e) {
     if (e instanceof Deno.errors.NotFound) {

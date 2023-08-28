@@ -7,8 +7,8 @@ import {
 import { global } from "./src/globals.ts";
 import { updateCacheStructure } from "./src/commands/update-cache.ts";
 import {installedExchanges} from "./src/exchanges/exchanges.ts";
-import {serve} from "https://deno.land/std@0.194.0/http/server.ts";
-import {addPort, addServerArgs, reqHandler, startServer} from "./charts/server.ts";
+import {addServerArgs, startServer} from "./charts/server.ts";
+import {isStandalone} from "./src/deno_utils.ts";
 
 const addInputFilesArg = (yargs: YargsInstance) => {
   yargs.positional("orderFiles", {
@@ -207,7 +207,7 @@ const input = yargs(Deno.args)
   .demandCommand(1)
   .version("version", "{{VERSION}}").alias("version", "V");
 
-if (Deno.execPath().indexOf("deno") === -1) {
+if (isStandalone()) {
     input.scriptName('').parse();
 } else {
     input.parse();

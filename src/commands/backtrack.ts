@@ -238,6 +238,7 @@ function writeResultsSummary(ordersWithResults: DetailedBackTrackResult[]) {
   console.log("----------- Summary results -----------");
   console.log(`Count orders: ${summary.countOrders}`);
   console.log(`Count Profitable: ${summary.countProfitable} (${formatPct(summary.countProfitable / summary.countOrders)}%)`);
+  console.log(`Count Lossy: ${summary.countLossy} (${formatPct(summary.countLossy / summary.countOrders)}%)`);
   console.log(`Count SL: ${summary.countSL} (${formatPct(summary.countSL / summary.countOrders)}%)`);
   console.log(`Count SL after TP: ${summary.countSlAfterTp}`);
   console.log(`Count SL or TP before entry: ${summary.countHitSlOrTpBeforeEntry} (${formatPct(summary.countHitSlOrTpBeforeEntry / summary.countOrders)}%)`);

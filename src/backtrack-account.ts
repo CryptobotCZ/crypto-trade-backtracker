@@ -495,9 +495,10 @@ export class AccountSimulation {
         }
 
         const dayStart = new Date(date).setUTCHours(0, 0, 0, 0);
+        const dayEnd = new Date(date).setUTCHours(23, 59, 0, 0);
 
         const tradeData = await getTradeDataWithCache(symbol, interval, new Date(dayStart), exchange);
-        const filteredTradeData = tradeData?.filter(x => x.openTime >= date) ?? [];
+        const filteredTradeData = tradeData?.filter(x => x.openTime >= date && x.openTime <= dayEnd) ?? [];
 
         const exchangeData = mapGetOrCreate(this.tradeData, exchange, () => new Map<string, Map<number, TradeData>>());
         const coinData = mapGetOrCreate(exchangeData, symbol, () => new Map<number, TradeData>());

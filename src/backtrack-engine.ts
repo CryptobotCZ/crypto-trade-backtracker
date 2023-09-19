@@ -263,6 +263,10 @@ export abstract class AbstractState {
   }
 
   get soldPct() {
+    if (this.soldCoins === 0) {
+      return 0;
+    }
+    
     return this.soldCoins / this.boughtCoins;
   }
 

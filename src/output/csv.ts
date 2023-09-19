@@ -1,6 +1,7 @@
 ﻿import { Order } from "../backtrack-engine.ts";
 import { DetailedBackTrackResult } from "../commands/backtrack.ts";
 import {CornixConfiguration} from "../cornix.ts";
+import {AccountSimulation} from "../backtrack-account.ts";
 
 export interface ExportConfig {
   locale?: string;
@@ -293,6 +294,74 @@ export async function exportCsvInCornixFormat(
   const data = [ csvHeader, ...csvRows, ...emptyRows, [ cornixConfigStr ], ]
     .map((row) => row.join(separator))
     .join("\n",);
+
+  await Deno.writeTextFileSync(path, data);
+}
+
+export async function exportAccountSimulationCsv(
+    backTrackResults: AccountSimulation,
+    cornixConfig: CornixConfiguration,
+    path: string,
+    config: ExportConfig = defaultConfig,
+) {
+  const usedConfig = {
+    ...defaultConfig,
+    ...config,
+  };
+
+  const intl = new Intl.NumberFormat(usedConfig.locale, {
+    useGrouping: false,
+  });
+  const decimalSeparator = usedConfig.decimalSeparator ?? getDecimalSeparator(usedConfig.locale!);
+
+  const options = {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+  };
+
+  const csvHeader = [
+    "ID",
+    "Date",
+    "Account Balance",
+    "In Orders",
+    "Realized Profit per Day",
+    "Unrealized Profit per Day",
+    "Realized PnL per Day",
+    "Unrealized PnL per Day",
+  ];
+
+  const csvRows = backTrackResults.dailyStats.map((x, idx) => {
+    return [
+        idx,
+        x.day.toLocaleDateString('en-US', options as any),
+        x.accountBalance,
+        x.balanceInOrders,
+        x.realizedProfitPerDay,
+        x.unrealizedProfitPerDay,
+        x.realizedPnlPerDay,
+        x.unrealizedPnlPerDay,
+      ].map((x, idx) => {
+        const val = idx > 0 && typeof x === "number" ? intl.format(x) : x;
+  
+        if (val?.toString()?.includes(usedConfig.delimiter!)) {
+          return `"${val}"`;
+        }
+  
+        return val;
+    });
+  });
+
+  const emptyRows = Array.from({ length: 3 }).map(_ => []);
+  const cornixConfigStr = JSON.stringify(cornixConfig, undefined, 2);
+
+  const separator = usedConfig.delimiter;
+  const data = [ csvHeader, ...csvRows, ...emptyRows, [ cornixConfigStr ], ]
+      .map((row) => row.join(separator))
+      .join("\n",);
 
   await Deno.writeTextFileSync(path, data);
 }

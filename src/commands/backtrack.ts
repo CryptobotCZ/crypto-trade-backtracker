@@ -1,5 +1,5 @@
 import { writeJson } from "../../deps.ts";
-import {exportCsv, exportCsvInCornixFormat} from "../output/csv.ts";
+import {exportAccountSimulationCsv, exportCsv, exportCsvInCornixFormat} from "../output/csv.ts";
 
 import {
   AbstractState,
@@ -11,7 +11,6 @@ import {
 import {
   ApiError,
   getTradeDataWithCache,
-  loadDataFromCache,
   TradeData,
 } from "../exchanges/exchanges.ts";
 import {CornixConfiguration, getFlattenedCornixConfig, validateOrder} from "../cornix.ts";
@@ -352,6 +351,9 @@ export async function backtrackInAccountModeCommand(args: BackTrackArgs) {
     writeAccountSimulationResultsSummary(result);
     writeResultsSummary(ordersWithResults);
     await writeResultsToFile(ordersWithResults, cornixConfig, args);
+
+    const fileNameAccountMode = args.outputPath?.replace('.csv', '-account.csv') ?? `backtrack-results-account-mode${Date.now()}.csv`;
+    await exportAccountSimulationCsv(account, cornixConfig, fileNameAccountMode, args);
 
     return { account, result, info: account.info, ordersWithResults };
 }

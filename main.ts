@@ -5,7 +5,7 @@ import {
     defaultCornixConfig,
 } from "./src/commands/backtrack.ts";
 import { global } from "./src/globals.ts";
-import { updateCacheStructure } from "./src/commands/update-cache.ts";
+import {updateCacheStructure, verifyCacheIntegrity} from "./src/commands/update-cache.ts";
 import {installedExchanges} from "./src/exchanges/exchanges.ts";
 import {addServerArgs, startServer} from "./charts/server.ts";
 import {isStandalone} from "./src/deno_utils.ts";
@@ -194,6 +194,12 @@ const input = yargs(Deno.args)
   }, async (argv: Arguments) => {
       console.log("Updating cache structure...");
       await updateCacheStructure(argv.cachePath);
+  })
+  .command('verify-cache', 'Verifies cache integrity', (yargs: YargsInstance) => {
+      addCachePath(yargs);
+  }, async (argv: Arguments) => {
+      console.log('Verifying cache integrity...');
+      await verifyCacheIntegrity(argv.cachePath);
   })
   .command(
       "server <orderFiles...>",

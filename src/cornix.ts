@@ -324,7 +324,7 @@ export function getOrderAmount(order: Order, cornixConfig: CornixConfiguration, 
 
       if (order.sl != null) {
         const averageEntryPrice = getWeightedAverageEntryPrice(order, cornixConfig);
-        const potentialLossPct = (averageEntryPrice - order.sl) / averageEntryPrice;
+        const potentialLossPct = Math.abs((averageEntryPrice - order.sl) / averageEntryPrice);
         const riskPct = orderAmountConfig.percentage / 100;
         const leverage = order.leverage ?? 1;
         const positionSize = (riskPct * availableBalance) / (potentialLossPct * leverage);

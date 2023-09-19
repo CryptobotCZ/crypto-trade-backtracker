@@ -182,6 +182,10 @@ export class AccountSimulation {
 
                     this.dailyStats.push(currentDayStats);
 
+                    if (this.state.args.debug) {
+                        console.log(`Day ${this.dailyStats.length} stats: Profit: ${currentDayStats.realizedProfitPerDay}, PnL: ${currentDayStats.realizedPnlPerDay}`);
+                    }
+
                     currentDayStats = {
                         realizedProfitPerDay: 0,
                         unrealizedPnlPerDay: 0,
@@ -191,10 +195,6 @@ export class AccountSimulation {
                         unrealizedProfitPerDay: 0,
                         day: new Date(new Date(previousDay).setUTCHours(0, 0, 0, 0)),
                     };
-
-                    if (this.state.args.debug) {
-                        console.log(`Day ${this.dailyStats.length} stats: Profit: ${currentDayStats.realizedProfitPerDay}, PnL: ${currentDayStats.realizedPnlPerDay}`);
-                    }
 
                     if (this.state.activeOrders.length === 0 && this.state.remainingOrders.length === 0) {
                         break;

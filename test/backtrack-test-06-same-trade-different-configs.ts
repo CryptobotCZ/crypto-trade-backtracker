@@ -1,0 +1,175 @@
+﻿import { assertEquals, assertArrayIncludes } from "../dev_deps.ts";
+import { TradeData } from "../src/exchanges/exchanges.ts";
+import { backtrack, Order, TradeResult } from "../src/backtrack-engine.ts";
+import { getTrade } from "./_helpers.ts";
+import { CornixConfiguration } from "../src/cornix.ts";
+import {BackTrackArgs, backtrackCommand, runBacktracking} from "../src/commands/backtrack.ts";
+
+const order: Order =  {
+    "signalId": "CELR/USDT:LONG:",
+    "coin": "CELR/USDT",
+    "direction": "LONG",
+    "date": "2023-06-24T08:54:47.000Z",
+    "leverage": 20,
+    "exchange": null,
+    "entries": [
+        0.01699
+    ],
+    "tps": [
+        0.01734,
+        0.01752,
+        0.0177,
+        0.01788
+    ],
+    "sl": null,
+    "events": []
+};
+
+const config: CornixConfiguration = {
+    amount: 100,
+    entries: [{ percentage: 100 }],
+    tps: [
+        { percentage: 0 },
+        { percentage: 0 },
+        { percentage: 0 },
+        { percentage: 100 },
+    ],
+    trailingTakeProfit: "without",
+    trailingStop: { type: "without" },
+    "sl": {
+        "defaultStopLossPct": 0.025,
+        "automaticLeverageAdjustment": false
+    },
+};
+
+export async function testWithoutTrailingSLAllTp4() {
+    const args = {
+        downloadBinanceData: true,
+    } as Partial<BackTrackArgs> as any as BackTrackArgs;
+    const orders = [ order ];
+    const tradesMap = new Map();
+
+    const ordersWithResults = await runBacktracking(args, orders, tradesMap, config);
+
+    const outputOrder = ordersWithResults[0].order;
+    const info = ordersWithResults[0].info;
+    const events = ordersWithResults[0].events;
+
+    //const { order, info, events } = ordersWithResults[0];
+    assertArrayIncludes(events, [{
+        type: "buy",
+        price: 5.228,
+        spent: 100,
+        spentWithLeverage: 2000,
+        bought: 382.5554705432288,
+        timestamp: 1690764360000,
+    }]);
+
+    assertArrayIncludes(events, [{
+        "type": "sl",
+        "price": 5.045,
+        "total": 1929.9923488905893,
+        "sold": 382.5554705432288,
+        "timestamp": 1690833540000
+    }]);
+
+    const expectedInfo: TradeResult = {
+        "reachedEntries": 1,
+        "reachedTps": 0,
+        "openTime": new Date("2023-07-31T00:45:05.000Z"),
+        "closeTime": new Date("2023-07-31T19:59:00.000Z"),
+        "isClosed": true,
+        "isCancelled": false,
+        "isProfitable": false,
+        "pnl": -70.00765110941074,
+        "profit": -70.00765110941074,
+        "hitSl": true,
+        "averageEntryPrice": 5.228,
+        "allocatedAmount": 100,
+        "spentAmount": 100,
+        "realizedProfit": -70.00765110941074,
+        "unrealizedProfit": 0,
+        "reachedAllEntries": true,
+        "reachedAllTps": false,
+        boughtCoins: 0,
+        averageSalePrice: 0,
+        soldAmount: 0,
+    }
+
+    assertEquals(info, expectedInfo);
+}
+
+Deno.test('Test backtracking without trailing SL - TP4 100%', testWithoutTrailingSLAllTp4);
+
+
+export async function testWithoutTrailingSLEvenly() {
+    const currentConfig = { ...config, tps: "Evenly Divided" };
+
+    const args = {
+        downloadBinanceData: true,
+    } as Partial<BackTrackArgs> as any as BackTrackArgs;
+    const orders = [ order ];
+    const tradesMap = new Map();
+
+    const ordersWithResults = await runBacktracking(args, orders, tradesMap, currentConfig);
+
+    const outputOrder = ordersWithResults[0].order;
+    const info = ordersWithResults[0].info;
+    const events = ordersWithResults[0].events;
+
+    //const { order, info, events } = ordersWithResults[0];
+    assertArrayIncludes(events, [{
+        type: "buy",
+        price: 5.228,
+        spent: 100,
+        spentWithLeverage: 2000,
+        bought: 382.5554705432288,
+        timestamp: 1690764360000,
+    }]);
+
+    assertArrayIncludes(events, [{
+        "type": "sl",
+        "price": 5.045,
+        "total": 1929.9923488905893,
+        "sold": 382.5554705432288,
+        "timestamp": 1690833540000
+    }]);
+
+    const expectedInfo: TradeResult = {
+        "reachedEntries": 1,
+        "reachedTps": 0,
+        "openTime": new Date("2023-07-31T00:45:05.000Z"),
+        "closeTime": new Date("2023-07-31T19:59:00.000Z"),
+        "isClosed": true,
+        "isCancelled": false,
+        "isProfitable": false,
+        "pnl": -70.00765110941074,
+        "profit": -70.00765110941074,
+        "hitSl": true,
+        "averageEntryPrice": 5.228,
+        "allocatedAmount": 100,
+        "spentAmount": 100,
+        "realizedProfit": -70.00765110941074,
+        "unrealizedProfit": 0,
+        "reachedAllEntries": true,
+        "reachedAllTps": false,
+        boughtCoins: 0,
+        averageSalePrice: 0,
+        soldAmount: 0,
+    }
+
+    assertEquals(info, expectedInfo);
+}
+
+Deno.test('Test backtracking without trailing SL - Evenly Distributed', testWithoutTrailingSLEvenly);
+
+
+export async function testTrailingSlTp1AllTp4() {
+    const currentConfig = { ...config, trailingStop: {
+        "type": "moving-target",
+            "trigger": 1
+        }
+    };
+}
+
+Deno.test('Test backtracking SL after TP1 - TP4 100%', testTrailingSlTp1AllTp4);

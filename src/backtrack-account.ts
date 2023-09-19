@@ -172,7 +172,7 @@ export class AccountSimulation {
 
         while (this.state.currentTime < this.state.endTime) {
             try {
-                this.updateActiveOrders();
+                await this.updateActiveOrders();
 
                 const remainder = this.state.currentTime % msInDay;
                 if (remainder === 0) {
@@ -234,7 +234,7 @@ export class AccountSimulation {
 
                         if (!initialState.info.reachedAllEntries && order.state.info.reachedTps > 0) {
                             // didn't reach all entries, but hit TP -> free the amount allocated to unrealized entry points
-                            this.state.availableBalance +=  order.state.remainingAmount;
+                            this.state.availableBalance += order.state.remainingAmount;
                             this.state.logger.log({
                                 type: "close_entry",
                                 order: order.state.order,
@@ -376,7 +376,7 @@ export class AccountSimulation {
         return ordersWithResults;
     }
 
-    updateActiveOrders() {
+    async updateActiveOrders() {
         const minuteInMs = 60 * 1000;
 
         // First go through remaining orders and open orders which should be opened at currentTime
@@ -390,7 +390,7 @@ export class AccountSimulation {
                     });
                     this.state.skippedOrders.push({ order, reason: 'max active orders limit reached'} );
                 } else {
-                    this.activateOrder(order);
+                    await this.activateOrder(order);
                 }
 
                 this.state.remainingOrders.splice(this.state.remainingOrders.indexOf(order), 1);
@@ -398,7 +398,7 @@ export class AccountSimulation {
         }
     }
 
-    activateOrder(order: Order) {
+    async activateOrder(order: Order) {
         const cornixConfig = this.state.config;
         const balanceBefore = this.state.availableBalance;
         const orderAmount = getOrderAmount(order, cornixConfig, balanceBefore);
@@ -408,6 +408,16 @@ export class AccountSimulation {
                 type: "info",
                 message: "Insufficient balance, skipping order...",
                 time: this.state.currentTime,
+            });
+            return;
+        }
+
+        if (isNaN(orderAmount) || orderAmount === 0) {
+            this.state.logger.log({
+                type: "info",
+                message: "Invalid order size, skipping order...",
+                time: this.state.currentTime,
+                orderAmount
             });
             return;
         }
@@ -428,7 +438,7 @@ export class AccountSimulation {
             console.log(JSON.stringify(order));
         }
 
-        if (!validateOrder(order)) {
+        if (!validateOrder(order) || !await this.isValidCoin(order)) {
             console.log(JSON.stringify(order, undefined, 2));
             console.log('Invalid order, skipping...');
         } else {
@@ -448,6 +458,20 @@ export class AccountSimulation {
             balanceAfter,
             time: this.state.currentTime,
         });
+    }
+
+    async isValidCoin(order: Order) {
+        try {
+            const time = this.state.currentTime;
+            const exchange = getExchange(order.exchange ?? this.state.args.exchange ?? 'binance') ?? 'binance'
+            const data = await this.loadTradeDataForSymbol(order.coin, time, exchange);
+
+            return data != null;
+        } catch (exc) {
+            return false;
+        }
+
+        return true;
     }
 
     async loadTradeDataForAllSymbols(symbols: string[], startDate: number, exchange = 'binance', interval = '1m', count = 1440) {
